@@ -1,0 +1,85 @@
+"use client";
+
+import { Clock, MapPin, User } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import type { Lesson } from "./use-tspk";
+
+export function LessonCard({ lesson }: { lesson: Lesson }) {
+  return (
+    <Card className="overflow-hidden border-l-4 border-l-primary/80 hover:shadow-md transition-shadow">
+      <CardContent className="p-4 sm:p-5 flex gap-3 sm:gap-4 items-start">
+        <div className="flex flex-col items-center justify-center shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-primary/10 text-primary">
+          <span className="text-xs font-medium uppercase tracking-wide opacity-70">Пара</span>
+          <span className="text-xl sm:text-2xl font-bold leading-none">{lesson.number}</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-base sm:text-lg leading-tight break-words">
+            {lesson.subject}
+          </h3>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
+            {lesson.time && (
+              <span className="inline-flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5" />
+                <span className="font-mono">{lesson.time}</span>
+              </span>
+            )}
+            {lesson.teacher && (
+              <span className="inline-flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5" />
+                {lesson.teacher}
+              </span>
+            )}
+            {lesson.room && (
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5" />
+                {lesson.room}
+              </span>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function LessonCardSkeleton() {
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-4 sm:p-5 flex gap-4 items-start animate-pulse">
+        <div className="shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-muted" />
+        <div className="flex-1 space-y-2">
+          <div className="h-5 bg-muted rounded w-3/4" />
+          <div className="h-3 bg-muted rounded w-1/2" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function EmptyState({
+  title,
+  description,
+  tone = "muted",
+}: {
+  title: string;
+  description?: string;
+  tone?: "muted" | "positive" | "warning";
+}) {
+  const toneClass =
+    tone === "positive"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200"
+      : tone === "warning"
+        ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200"
+        : "border-muted bg-muted/30 text-muted-foreground";
+  return (
+    <Card className={toneClass}>
+      <CardContent className="p-6 text-center">
+        <p className="font-medium">{title}</p>
+        {description && <p className="text-sm mt-1 opacity-80">{description}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+export { Badge };

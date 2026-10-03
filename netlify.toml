@@ -1,0 +1,16 @@
+# Netlify configuration for the TSPK bot (Next.js 16 with App Router).
+# Docs: https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+  # If you cloned the repo into a subfolder, set this to that folder name.
+  # Leave commented-out for the default (project root) layout.
+  # base = "tspk-bot"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--legacy-peer-deps"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
