@@ -11,14 +11,16 @@ interface Props {
   /** ISO date — typically today's date. */
   startDate: string | null;
   group: string;
+  /** Corpus: 1 or 2 — passed through to /api/schedule/day. */
+  corpus?: 1 | 2;
 }
 
 /**
  * Compact 7-day week view. Each day is a card; inside each card we list the
  * lessons for the chosen group (or show a "no lessons" / "no group" hint).
  */
-export function WeekView({ startDate, group }: Props) {
-  const { items, loading } = useWeekSchedule(startDate, 7);
+export function WeekView({ startDate, group, corpus = 1 }: Props) {
+  const { items, loading } = useWeekSchedule(startDate, 7, corpus);
 
   if (!startDate) return null;
 

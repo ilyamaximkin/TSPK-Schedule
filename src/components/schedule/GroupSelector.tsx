@@ -6,30 +6,41 @@ import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { useDaySchedule, type DaySchedule } from "./use-tspk";
+import {
+  useDaySchedule,
+  FALLBACK_GROUPS,
+  type DaySchedule,
+} from "./use-tspk";
 
 interface Props {
   /** If set, we use this schedule's groups as the suggestion list. */
   schedule?: DaySchedule | null;
   /** Otherwise fetch by date. */
   date?: string | null;
+  /** Corpus: 1 (Мурысева 84) or 2 (Ленинградская 28). */
+  corpus?: 1 | 2;
   value: string;
   onChange: (v: string) => void;
 }
 
 /**
  * Group selector with autocomplete. Uses today's group list (or a provided
- * schedule's group list) to populate suggestions. Falls back to a free-text
- * input if the user's group isn't in today's list.
+ * schedule's group list) to populate suggestions. If the API hasn't loaded
+ * yet (e.g. weekend with no schedule), falls back to a hardcoded list of
+ * known TSPK groups so the dropdown is never empty.
  */
-export function GroupSelector({ schedule, date, value, onChange }: Props) {
+export function GroupSelector({ schedule, date, corpus = 1, value, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const daySchedule = useDaySchedule(schedule ? null : (date ?? null));
+  const daySchedule = useDaySchedule(schedule ? null : (date ?? null), corpus);
 
   const groups = useMemo(() => {
-    if (schedule) return schedule.groups;
-    return daySchedule.data?.groups ?? [];
+    if (schedule && schedule.groups.length > 0) return schedule.groups;
+    if (daySchedule.data?.groups && daySchedule.data.groups.length > 0) {
+      return daySchedule.data.groups;
+    }
+    // Fallback to a static list so the dropdown is never empty.
+    return FALLBACK_GROUPS;
   }, [schedule, daySchedule.data]);
 
   const filtered = useMemo(() => {
@@ -38,11 +49,15 @@ export function GroupSelector({ schedule, date, value, onChange }: Props) {
     return groups.filter((g) => g.toLowerCase().includes(q));
   }, [groups, query]);
 
-  const showFreeText = query.trim().length > 0 && !groups.some((g) => g.toLowerCase() === query.trim().toLowerCase());
+  const showFreeText =
+    query.trim().length > 0 &&
+    !groups.some((g) => g.toLowerCase() === query.trim().toLowerCase());
 
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1">Моя группа</label>
+      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1">
+        Моя группа {corpus === 2 ? "(2 корпус)" : "(1 корпус)"}
+      </label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -81,7 +96,7 @@ export function GroupSelector({ schedule, date, value, onChange }: Props) {
                   </CommandItem>
                 </CommandGroup>
               )}
-              <CommandGroup heading={schedule ? "Группы на этот день" : "Группы сегодня"}>
+              <CommandGroup heading={groups === FALLBACK_GROUPS ? "Все группы" : "Группы на этот день"}>
                 {filtered.slice(0, 200).map((g) => (
                   <CommandItem
                     key={g}

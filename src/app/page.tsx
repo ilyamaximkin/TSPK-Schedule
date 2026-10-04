@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, CalendarRange, CalendarClock, GraduationCap, ExternalLink, Info } from "lucide-react";
+import { CalendarDays, CalendarRange, CalendarClock, GraduationCap, ExternalLink, Info, Building2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -24,16 +24,17 @@ const TSPK_URL = "https://tspk.org/studentam/novoe-raspisanie-demo.html";
 export default function Home() {
   const [group, setGroup] = useLocalStorage<string>("tspk:group", "");
   const [tab, setTab] = useLocalStorage<string>("tspk:tab", "today");
+  const [corpus, setCorpus] = useLocalStorage<1 | 2>("tspk:corpus", 1);
   const [customDate, setCustomDate] = useState<Date | undefined>(new Date());
 
   const today = todayIso();
   const tomorrow = offsetIso(1);
 
-  const todaySched = useDaySchedule(today);
-  const tomorrowSched = useDaySchedule(tomorrow);
+  const todaySched = useDaySchedule(today, corpus);
+  const tomorrowSched = useDaySchedule(tomorrow, corpus);
   // For the "by date" tab we use the selected Date object → ISO.
   const customIso = customDate ? isoFromJsDate(customDate) : today;
-  const customSched = useDaySchedule(customIso);
+  const customSched = useDaySchedule(customIso, corpus);
 
   const weekStart = today;
 
@@ -68,11 +69,36 @@ export default function Home() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-5 sm:py-8 space-y-5 pb-16">
+        {/* Corpus selector */}
+        <Card>
+          <CardContent className="p-4 sm:p-5">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1 mb-2 block">
+              Корпус
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <CorpusButton
+                active={corpus === 1}
+                onClick={() => setCorpus(1)}
+                title="1 корпус"
+                subtitle="Мурысева, 84"
+              />
+              <CorpusButton
+                active={corpus === 2}
+                onClick={() => setCorpus(2)}
+                title="2 корпус"
+                subtitle="Ленинградская, 28"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Group selector */}
         <Card>
           <CardContent className="p-4 sm:p-5">
             <GroupSelector
               schedule={todaySched.data}
+              date={today}
+              corpus={corpus}
               value={group}
               onChange={setGroup}
             />
@@ -167,7 +193,7 @@ export default function Home() {
               <Info className="w-3.5 h-3.5" />
               Расписание на 7 дней, начиная с сегодняшнего.
             </p>
-            <WeekView startDate={weekStart} group={group} />
+            <WeekView startDate={weekStart} group={group} corpus={corpus} />
           </TabsContent>
         </Tabs>
       </main>
@@ -196,6 +222,40 @@ function isoFromJsDate(d: Date): string {
   const mo = String(d.getMonth() + 1).padStart(2, "0");
   const da = String(d.getDate()).padStart(2, "0");
   return `${y}-${mo}-${da}`;
+}
+
+/** Corpus toggle button — used to switch between corpus 1 (Мурысева 84)
+ * and corpus 2 (Ленинградская 28). */
+function CorpusButton({
+  active,
+  onClick,
+  title,
+  subtitle,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        "flex items-center gap-3 px-4 py-3 rounded-lg border-2 transition-all text-left " +
+        (active
+          ? "border-primary bg-primary/5"
+          : "border-border hover:border-muted-foreground/40 bg-background")
+      }
+      aria-pressed={active}
+    >
+      <Building2 className={"w-5 h-5 shrink-0 " + (active ? "text-primary" : "text-muted-foreground")} />
+      <div className="min-w-0">
+        <div className={"font-semibold text-sm " + (active ? "text-primary" : "")}>{title}</div>
+        <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
+      </div>
+    </button>
+  );
 }
 
 /**

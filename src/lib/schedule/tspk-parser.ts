@@ -3,15 +3,17 @@
  *
  * Source: https://tspk.org/studentam/novoe-raspisanie-demo.html
  *
- * The TSPK page is a calendar: each day cell contains a link to a Google
- * Spreadsheet with the actual schedule for that day. We:
+ * The TSPK page contains TWO calendars — one for building 1 ("1 корпус",
+ * Мурысева 84) and one for building 2 ("2 корпус", Ленинградская 28).
+ * Each day cell links to a Google Spreadsheet with the actual schedule.
+ * We:
  *   1. Fetch the calendar HTML from tspk.org.
- *   2. For every day cell, extract the Google Spreadsheet ID (or null if no
- *      lessons that day — link points to #norasp).
- *   3. To get the schedule for a specific day, fetch the spreadsheet as CSV
- *      via https://docs.google.com/spreadsheets/d/{ID}/gviz/tq?tqx=out:csv
- *      and parse the multi-table CSV structure (one spreadsheet can contain
- *      several sub-tables — one per course / corpus / building block).
+ *   2. For each day cell, extract: corpus (1/2), spreadsheetId, optional
+ *      gid (sheet id — corpus-2 spreadsheets store the schedule on a
+ *      non-default sheet).
+ *   3. To get the schedule for a specific day, fetch the spreadsheet as
+ *      CSV via https://docs.google.com/spreadsheets/d/{ID}/gviz/tq?tqx=out:csv
+ *      (&gid={gid} if present) and parse the multi-table CSV structure.
  */
 
 import * as cheerio from "cheerio";
@@ -39,37 +41,38 @@ const MONTH_NAMES_RU: Record<string, number> = {
 export interface CalendarEntry {
   /** ISO date string YYYY-MM-DD */
   date: string;
-  /** Google Spreadsheet ID or null if no lessons */
+  /** Corpus (building): 1 or 2 */
+  corpus: 1 | 2;
+  /** Google Spreadsheet ID or null if no lessons that day */
   spreadsheetId: string | null;
+  /** Optional Google Sheets sheet ID (gid) — corpus-2 days use a
+   * non-default sheet, so we must request it explicitly. */
+  gid: string | null;
 }
 
 export interface Lesson {
-  /** Pair number (1, 2, 3, ...) — from the first column */
   number: number;
-  /** Lesson time, e.g. "14.40-15.40" (taken from row[1]) */
   time: string;
-  /** Lesson subject (discipline), e.g. "МДК 03.05 Детская литература..." */
   subject: string;
-  /** Teacher name, e.g. "Хлопова Е.Н." — or empty if not parsed */
   teacher: string;
-  /** Room, e.g. "каб.214" — or empty if not parsed */
   room: string;
-  /** Raw cell content (for debugging / fallback display) */
   raw: string;
 }
 
 export interface DaySchedule {
   /** ISO date YYYY-MM-DD */
   date: string;
-  /** Human-readable header from the CSV (e.g. "Расписание занятий на 01 октября (среда) 2026-2027 уч.года") */
+  /** Corpus (1 or 2) */
+  corpus: 1 | 2;
+  /** Human-readable header from the CSV */
   header: string;
-  /** Day of week in Russian, e.g. "Среда" — derived from header or fallback to JS Date */
+  /** Day of week in Russian */
   dayOfWeek: string;
   /** All groups mentioned across all sub-tables in this CSV */
   groups: string[];
   /** Schedule grouped by group name */
   scheduleByGroup: Record<string, Lesson[]>;
-  /** True when the CSV explicitly says "нет занятий" or contains no lessons */
+  /** True when the CSV says "нет занятий" or contains no lessons */
   noLessons: boolean;
 }
 
@@ -99,20 +102,89 @@ const DAY_OF_WEEK_RU = [
 // CALENDAR PARSER
 // ---------------------------------------------------------------------------
 
-/** Strip junk from group name: "Д-41 " → "Д-41", also handles some edge cases. */
 const normalizeGroupName = (raw: string): string => {
   if (!raw) return "";
   let s = raw.replace(/\s+/g, " ").trim();
-  // Drop trailing punctuation
   s = s.replace(/[.,;:]+$/g, "").trim();
   return s;
 };
 
 /**
- * Parse the TSPK calendar page and return a list of {date, spreadsheetId}.
+ * Parse the TSPK calendar HTML and return a flat list of CalendarEntry.
  * Days with no lessons (link = #norasp / empty) still appear with
  * spreadsheetId === null.
+ *
+ * The two calendars on the page (corpus 1 and corpus 2) are distinguished
+ * by the `name` attribute of the slider radio inputs inside their
+ * container: "toggle" for corpus 1, "toggle2" for corpus 2.
  */
+export function parseCalendarHtml(html: string): CalendarEntry[] {
+  const $ = cheerio.load(html);
+  const entries: CalendarEntry[] = [];
+
+  const corpus1Container = $('div.table-raspisanie-cell')
+    .filter(function () {
+      return $(this).find('input[name="toggle"]').length > 0;
+    })
+    .first();
+  const corpus2Container = $('div.table-raspisanie-cell')
+    .filter(function () {
+      return $(this).find('input[name="toggle2"]').length > 0;
+    })
+    .first();
+
+  const parseTables = (container: cheerio.Cheerio<cheerio.AnyNode>, corpus: 1 | 2) => {
+    container.find(".cal").each((_, cal) => {
+      const caption = $(cal).find("caption").first().text().replace(/[«»]/g, " ").trim();
+      const m = caption.match(/([А-Яа-яЁё]+)\s+(\d{4})/);
+      if (!m) return;
+      const monthIdx = MONTH_NAMES_RU[m[1].toLowerCase()];
+      if (monthIdx === undefined) return;
+      const year = parseInt(m[2], 10);
+
+      const rows = $(cal).find("tbody tr").toArray().slice(1);
+      for (const tr of rows) {
+        const cells = $(tr).find("td").toArray();
+        for (const td of cells) {
+          const cellText = $(td).text().trim();
+          const dayMatch = cellText.match(/^(\d{1,2})/);
+          if (!dayMatch) continue;
+          const day = parseInt(dayMatch[1], 10);
+          if (!day || day > 31) continue;
+
+          const href = $(td).find("a").attr("href") || "";
+          let spreadsheetId: string | null = null;
+          let gid: string | null = null;
+          const idMatch = href.match(/spreadsheets\/d\/([a-zA-Z0-9_-]{20,})/);
+          if (idMatch) spreadsheetId = idMatch[1];
+          const gidMatch = href.match(/gid=(\d+)/);
+          if (gidMatch) gid = gidMatch[1];
+
+          const date = `${year}-${pad(monthIdx + 1)}-${pad(day)}`;
+          entries.push({ date, corpus, spreadsheetId, gid });
+        }
+      }
+    });
+  };
+
+  parseTables(corpus1Container, 1);
+  parseTables(corpus2Container, 2);
+
+  // De-duplicate per (corpus, date) — border days may appear in two months.
+  const byKey = new Map<string, CalendarEntry>();
+  for (const e of entries) {
+    const key = `${e.corpus}:${e.date}`;
+    const prev = byKey.get(key);
+    if (!prev || (prev.spreadsheetId === null && e.spreadsheetId !== null)) {
+      byKey.set(key, e);
+    }
+  }
+  return Array.from(byKey.values()).sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return a.corpus - b.corpus;
+  });
+}
+
 export async function fetchTspkCalendar(): Promise<CalendarEntry[]> {
   const res = await fetchWithTimeout(TSPK_URL, {
     headers: {
@@ -128,68 +200,26 @@ export async function fetchTspkCalendar(): Promise<CalendarEntry[]> {
   return parseCalendarHtml(html);
 }
 
-export function parseCalendarHtml(html: string): CalendarEntry[] {
-  const $ = cheerio.load(html);
-  const entries: CalendarEntry[] = [];
-
-  $(".cal").each((_, cal) => {
-    const caption = $(cal).find("caption").first().text().replace(/[«»]/g, " ").trim();
-    // caption looks like "Сентябрь 2026" or "Октябрь 2026"
-    const m = caption.match(/([А-Яа-яЁё]+)\s+(\d{4})/);
-    if (!m) return;
-    const monthIdx = MONTH_NAMES_RU[m[1].toLowerCase()];
-    if (monthIdx === undefined) return;
-    const year = parseInt(m[2], 10);
-
-    // First row is the weekday header (Пн, Вт, ...); skip it.
-    const rows = $(cal).find("tbody tr").toArray().slice(1);
-    for (const tr of rows) {
-      const cells = $(tr).find("td").toArray();
-      for (const td of cells) {
-        const cellText = $(td).text().trim();
-        const dayMatch = cellText.match(/^(\d{1,2})/);
-        if (!dayMatch) continue;
-        const day = parseInt(dayMatch[1], 10);
-        if (!day || day > 31) continue;
-
-        const href = $(td).find("a").attr("href") || "";
-        let spreadsheetId: string | null = null;
-        const idMatch = href.match(/spreadsheets\/d\/([a-zA-Z0-9_-]{20,})/);
-        if (idMatch) spreadsheetId = idMatch[1];
-
-        const date = `${year}-${pad(monthIdx + 1)}-${pad(day)}`;
-        entries.push({ date, spreadsheetId });
-      }
-    }
-  });
-
-  // De-duplicate: when the same date appears in two calendars (border days),
-  // prefer entries that have a spreadsheetId.
-  const byDate = new Map<string, CalendarEntry>();
-  for (const e of entries) {
-    const prev = byDate.get(e.date);
-    if (!prev || (prev.spreadsheetId === null && e.spreadsheetId !== null)) {
-      byDate.set(e.date, e);
-    }
-  }
-  return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
-}
-
-/** Find calendar entry for a given ISO date. */
+/** Find calendar entry for a given ISO date + corpus. */
 export function findCalendarEntry(
   entries: CalendarEntry[],
   isoDate: string,
+  corpus: 1 | 2 = 1,
 ): CalendarEntry | undefined {
-  return entries.find((e) => e.date === isoDate);
+  return entries.find((e) => e.date === isoDate && e.corpus === corpus);
 }
 
 // ---------------------------------------------------------------------------
 // DAY SCHEDULE PARSER (CSV)
 // ---------------------------------------------------------------------------
 
-/** Fetch the spreadsheet as CSV. Throws on non-200 / empty body. */
-export async function fetchSpreadsheetCsv(spreadsheetId: string): Promise<string> {
-  const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv`;
+/** Fetch the spreadsheet as CSV. If gid is given, requests that specific sheet. */
+export async function fetchSpreadsheetCsv(
+  spreadsheetId: string,
+  gid: string | null = null,
+): Promise<string> {
+  let url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv`;
+  if (gid) url += `&gid=${gid}`;
   const res = await fetchWithTimeout(
     url,
     {
@@ -210,11 +240,6 @@ export async function fetchSpreadsheetCsv(spreadsheetId: string): Promise<string
   return text;
 }
 
-/**
- * Normalize a fallback time string. The CSV often stores pair time as two
- * lines ("14.40\n15.40") instead of a proper range "14.40-15.40". We
- * collapse those into a single range string.
- */
 function normalizeFallbackTime(s: string): string {
   const parts = s
     .replace(/\r/g, "")
@@ -223,11 +248,9 @@ function normalizeFallbackTime(s: string): string {
     .filter(Boolean);
   if (parts.length === 0) return "";
   if (parts.length === 1) return parts[0];
-  // Two time stamps → range
   return `${parts[0]}-${parts[1]}`;
 }
 
-/** Parse a single lesson cell — extract subject, teacher, room, embedded time. */
 function parseLessonCell(cell: string, fallbackTimeRaw: string): Lesson | null {
   const raw = (cell || "").trim();
   const fallbackTime = normalizeFallbackTime(fallbackTimeRaw);
@@ -243,7 +266,6 @@ function parseLessonCell(cell: string, fallbackTimeRaw: string): Lesson | null {
     };
   }
 
-  // Normalize various newlines / weird spacing.
   const lines = raw
     .replace(/\r/g, "")
     .split("\n")
@@ -255,23 +277,17 @@ function parseLessonCell(cell: string, fallbackTimeRaw: string): Lesson | null {
   let room = "";
   let time = fallbackTime;
 
-  // Teacher pattern: "Фамилия И.О." — Cyrillic surname + initials
   const teacherRe = /([А-ЯЁ][а-яё]+(?:-[А-ЯЁ][а-яё]+)?)\s+([А-ЯЁ]\.\s*[А-ЯЁ]\.)/;
-  // Room patterns: "каб.214", "каб. 305", "ауд. 12", "корп.2"
   const roomRe = /((?:каб|ауд|корпус|корп)\.?\s*[\d\w-]+)/i;
-
-  // Time pattern: either "9.40-10.40" or just "9.40" at the start of a line
   const timeRangeRe = /(\d{1,2}\.\d{2})\s*[-–]\s*(\d{1,2}\.\d{2})/;
   const timeSingleRe = /^(\d{1,2}\.\d{2})/;
 
-  // Try to find embedded time like "9.40-10.40" anywhere in the cell
   for (const line of lines) {
     const tm = line.match(timeRangeRe);
     if (tm) {
       time = `${tm[1]}-${tm[2]}`;
       continue;
     }
-    // Single time at the very start of the first line — override fallback
     if (line === lines[0]) {
       const ts = line.match(timeSingleRe);
       if (ts && fallbackTime === "") {
@@ -284,28 +300,20 @@ function parseLessonCell(cell: string, fallbackTimeRaw: string): Lesson | null {
     if (rm && !room) room = rm[0].trim();
   }
 
-  // Subject: take the first line, strip leading time (range or single), strip
-  // teacher/room suffixes.
   const firstLine = lines[0] || "";
   let subj = firstLine;
-  // Strip leading embedded time range
   subj = subj.replace(/^\s*\d{1,2}\.\d{2}\s*[-–]\s*\d{1,2}\.\d{2}\s*/, "");
-  // Strip leading single time stamp
   subj = subj.replace(/^\s*\d{1,2}\.\d{2}\s+/, "");
-  // Strip teacher / room chunks from subject line
   if (teacher) subj = subj.replace(teacher, "").trim();
   if (room) subj = subj.replace(room, "").trim();
   subj = subj.replace(/^[—\-:\s,]+/, "").trim();
 
-  // If subject is empty but raw has multiple lines, use first line as-is.
   if (!subj) {
     subj = firstLine
       .replace(/^\s*\d{1,2}\.\d{2}\s*[-–]\s*\d{1,2}\.\d{2}\s*/, "")
       .replace(/^\s*\d{1,2}\.\d{2}\s+/, "")
       .trim();
   }
-
-  // If still empty, fall back to the whole cell.
   if (!subj) subj = raw;
 
   return {
@@ -318,12 +326,11 @@ function parseLessonCell(cell: string, fallbackTimeRaw: string): Lesson | null {
   };
 }
 
-/**
- * Parse the CSV (one Google Spreadsheet may contain several sub-tables, each
- * with its own header row mentioning "Время" and the list of groups).
- */
-export function parseDayScheduleCsv(csv: string, isoDate: string): DaySchedule {
-  // Google Sheets CSVs can be inconsistent; use a tolerant parser.
+export function parseDayScheduleCsv(
+  csv: string,
+  isoDate: string,
+  corpus: 1 | 2 = 1,
+): DaySchedule {
   const rows: string[][] = parseCsvString(csv, {
     relax_column_count: true,
     skip_empty_lines: false,
@@ -336,10 +343,8 @@ export function parseDayScheduleCsv(csv: string, isoDate: string): DaySchedule {
   let dayOfWeek = "";
   let noLessons = false;
 
-  // Try to extract header from the very first cell of the very first row.
   if (rows.length > 0 && rows[0].length > 0) {
     header = rows[0][0].replace(/\s+/g, " ").trim();
-    // Looks like: "Расписание занятий на 01 сентября (вторник) 2026-2027 уч.года Пара"
     const dowMatch = header.match(/\(([А-Яа-яЁё]+)\)/);
     if (dowMatch) {
       dayOfWeek = capitalize(dowMatch[1]);
@@ -350,27 +355,21 @@ export function parseDayScheduleCsv(csv: string, isoDate: string): DaySchedule {
     dayOfWeek = DAY_OF_WEEK_RU[d.getDay()] || "";
   }
 
-  // Detect "no lessons" markers.
   if (header.toLowerCase().includes("нет занятий") || header.toLowerCase().includes("выходной")) {
     noLessons = true;
   }
 
-  // Walk through rows. A sub-table header row has "Время" in the second column
-  // (index 1). All subsequent rows with a numeric first column are lessons
-  // for the current sub-table's groups.
   let currentGroups: string[] = [];
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i] || [];
     const col0 = (row[0] || "").toString().trim();
     const col1 = (row[1] || "").toString().trim();
 
-    // Sub-table header row — column 1 contains "Время".
     if (col1.toLowerCase().includes("время")) {
       currentGroups = [];
       for (let c = 2; c < row.length; c++) {
         const g = normalizeGroupName(row[c] || "");
         if (!g) continue;
-        // Skip non-group junk ("Согласовано:", "Зам. директора", etc.).
         if (g.length > 60 || /согласовано|директора|зам\./i.test(g)) continue;
         currentGroups.push(g);
         groupSet.add(g);
@@ -379,7 +378,6 @@ export function parseDayScheduleCsv(csv: string, isoDate: string): DaySchedule {
       continue;
     }
 
-    // Lesson row — first column is a pair number (1, 2, 3, ...).
     const num = parseInt(col0, 10);
     if (!Number.isFinite(num) || num < 1 || num > 12) continue;
 
@@ -394,7 +392,6 @@ export function parseDayScheduleCsv(csv: string, isoDate: string): DaySchedule {
     }
   }
 
-  // De-duplicate lessons per group (some tables list the same pair twice).
   for (const g of Object.keys(scheduleByGroup)) {
     const seen = new Set<string>();
     scheduleByGroup[g] = scheduleByGroup[g].filter((l) => {
@@ -410,6 +407,7 @@ export function parseDayScheduleCsv(csv: string, isoDate: string): DaySchedule {
 
   return {
     date: isoDate,
+    corpus,
     header,
     dayOfWeek,
     groups,
@@ -423,16 +421,14 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 }
 
-/**
- * Fetch and parse the full schedule for a single day.
- * Returns null if there are no lessons that day (no spreadsheetId).
- */
+/** Fetch and parse the full schedule for a single day. */
 export async function fetchDaySchedule(
   entry: CalendarEntry,
 ): Promise<DaySchedule | null> {
   if (!entry.spreadsheetId) {
     return {
       date: entry.date,
+      corpus: entry.corpus,
       header: "",
       dayOfWeek: getDayOfWeekRu(entry.date),
       groups: [],
@@ -440,8 +436,8 @@ export async function fetchDaySchedule(
       noLessons: true,
     };
   }
-  const csv = await fetchSpreadsheetCsv(entry.spreadsheetId);
-  return parseDayScheduleCsv(csv, entry.date);
+  const csv = await fetchSpreadsheetCsv(entry.spreadsheetId, entry.gid);
+  return parseDayScheduleCsv(csv, entry.date, entry.corpus);
 }
 
 export function getDayOfWeekRu(isoDate: string): string {

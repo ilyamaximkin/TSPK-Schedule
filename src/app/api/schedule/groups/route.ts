@@ -10,12 +10,14 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 /**
- * GET /api/schedule/groups?date=YYYY-MM-DD
+ * GET /api/schedule/groups?date=YYYY-MM-DD&corpus=1|2
  * Returns just the list of group names that have lessons on the given day.
- * Useful for autocomplete suggestions on the client.
  */
 export async function GET(req: NextRequest) {
   const date = req.nextUrl.searchParams.get("date");
+  const corpusRaw = req.nextUrl.searchParams.get("corpus") || "1";
+  const corpus: 1 | 2 = corpusRaw === "2" ? 2 : 1;
+
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json(
       { ok: false, error: "Query param 'date' must be in YYYY-MM-DD format" },
@@ -27,13 +29,13 @@ export async function GET(req: NextRequest) {
     const calendar = await cached("tspk:calendar", 5 * 60 * 1000, () =>
       fetchTspkCalendar(),
     );
-    const entry = findCalendarEntry(calendar, date);
+    const entry = findCalendarEntry(calendar, date, corpus);
     if (!entry || !entry.spreadsheetId) {
       return NextResponse.json({ ok: true, groups: [] });
     }
 
     const schedule = await cached(
-      `tspk:day:${date}`,
+      `tspk:day:${corpus}:${date}`,
       5 * 60 * 1000,
       async () => {
         const s = await fetchDaySchedule(entry);
