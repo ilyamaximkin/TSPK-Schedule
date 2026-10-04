@@ -37,8 +37,14 @@ export async function GET(req: NextRequest) {
     const calendar = await cached("tspk:calendar", 5 * 60 * 1000, () =>
       fetchTspkCalendar(),
     );
-    const entry = findCalendarEntry(calendar, date, corpus);
-    if (!entry) {
+    // For corpus 2, the TSPK calendar links to outdated 2022 spreadsheets.
+    // The real corpus-2 schedule lives inside the corpus-1 spreadsheet for
+    // the same day (on a different sheet / gid). So always use corpus-1's
+    // spreadsheetId for corpus-2 requests — fetchDaySchedule will probe
+    // the spreadsheet's htmlview to find the correct gid.
+    const lookupCorpus: 1 | 2 = corpus === 2 ? 1 : corpus;
+    const lookupEntry = findCalendarEntry(calendar, date, lookupCorpus);
+    if (!lookupEntry || !lookupEntry.spreadsheetId) {
       const fallback: DaySchedule = {
         date,
         corpus,
@@ -50,6 +56,12 @@ export async function GET(req: NextRequest) {
       };
       return NextResponse.json({ ok: true, schedule: fallback });
     }
+    const entry = {
+      date,
+      corpus,
+      spreadsheetId: lookupEntry.spreadsheetId,
+      gid: lookupEntry.gid,
+    };
 
     const schedule = await cached<DaySchedule>(
       `tspk:day:${corpus}:${date}`,

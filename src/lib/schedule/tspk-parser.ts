@@ -122,14 +122,23 @@ export function parseCalendarHtml(html: string): CalendarEntry[] {
   const $ = cheerio.load(html);
   const entries: CalendarEntry[] = [];
 
+  // The HTML has THREE .table-raspisanie-cell containers:
+  //   [0] — the outer wrapper containing BOTH corpora (has both toggle and
+  //         toggle2 inputs as descendants, and ~20 .cal tables)
+  //   [1] — corpus-1-only (has toggle, no toggle2, ~10 .cal tables)
+  //   [2] — corpus-2-only (has toggle2, no toggle, ~10 .cal tables)
+  // We want the inner ones ([1] and [2]) — they are distinguished by
+  // having ONE of the names but not the other.
   const corpus1Container = $('div.table-raspisanie-cell')
     .filter(function () {
-      return $(this).find('input[name="toggle"]').length > 0;
+      const c = $(this);
+      return c.find('input[name="toggle"]').length > 0 && c.find('input[name="toggle2"]').length === 0;
     })
     .first();
   const corpus2Container = $('div.table-raspisanie-cell')
     .filter(function () {
-      return $(this).find('input[name="toggle2"]').length > 0;
+      const c = $(this);
+      return c.find('input[name="toggle2"]').length > 0 && c.find('input[name="toggle"]').length === 0;
     })
     .first();
 
@@ -238,6 +247,60 @@ export async function fetchSpreadsheetCsv(
     throw new Error(`Empty CSV for spreadsheet ${spreadsheetId}`);
   }
   return text;
+}
+
+/**
+ * For corpus-2 schedules, the TSPK calendar on tspk.org links to outdated
+ * 2022 spreadsheets. The ACTUAL corpus-2 schedule for a given day lives
+ * inside the SAME spreadsheet as corpus-1 for that day, but on a different
+ * sheet (gid). Different days use different gids.
+ *
+ * To find the right gid, we fetch the spreadsheet's htmlview page and
+ * extract every gid mentioned, then probe each one and pick the sheet
+ * whose header mentions corpus-2 group prefixes (ФК- / АФК- / ДОУ-).
+ *
+ * Returns null if no corpus-2 sheet is found in this spreadsheet.
+ */
+export async function findCorpus2Gid(spreadsheetId: string): Promise<string | null> {
+  const htmlviewUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/htmlview`;
+  const res = await fetchWithTimeout(
+    htmlviewUrl,
+    {
+      headers: {
+        "User-Agent": USER_AGENT,
+        Accept: "text/html,*/*",
+      },
+    },
+    20000,
+  );
+  if (!res.ok) {
+    return null;
+  }
+  const html = await res.text();
+  // Extract all gid values mentioned in the page (typically 3-5).
+  const gidMatches = new Set<string>(
+    Array.from(html.matchAll(/gid=(\d+)/g)).map((m) => m[1]),
+  );
+  // gid=0 is the default sheet (corpus-1); skip it.
+  gidMatches.delete("0");
+
+  // Probe each non-default sheet in parallel, look for corpus-2 group prefixes.
+  const probes = await Promise.all(
+    Array.from(gidMatches).map(async (gid) => {
+      try {
+        const csv = await fetchSpreadsheetCsv(spreadsheetId, gid);
+        // Corpus-2 sheets always have headers mentioning ФК-/АФК-/ДОУ- groups.
+        if (/ФК-\d|АФК-\d|ДОУ-\d/u.test(csv.slice(0, 4000))) {
+          return gid;
+        }
+      } catch {
+        /* ignore — try next */
+      }
+      return null;
+    }),
+  );
+  const hit = probes.find((g) => g !== null);
+  return hit ?? null;
 }
 
 function normalizeFallbackTime(s: string): string {
@@ -435,6 +498,28 @@ export async function fetchDaySchedule(
       scheduleByGroup: {},
       noLessons: true,
     };
+  }
+  // For corpus 2, the spreadsheetId from the TSPK calendar is outdated
+  // (links to 2022 spreadsheets). The real corpus-2 schedule lives in the
+  // SAME spreadsheet as corpus-1 for that day, but on a different sheet
+  // (gid). We probe that spreadsheet's htmlview to find the right gid.
+  if (entry.corpus === 2) {
+    // entry.spreadsheetId here is the corpus-1 spreadsheet's id (set by
+    // the API route, which looks up the corpus-1 entry for this date).
+    const gid = await findCorpus2Gid(entry.spreadsheetId);
+    if (gid === null) {
+      return {
+        date: entry.date,
+        corpus: entry.corpus,
+        header: "",
+        dayOfWeek: getDayOfWeekRu(entry.date),
+        groups: [],
+        scheduleByGroup: {},
+        noLessons: true,
+      };
+    }
+    const csv = await fetchSpreadsheetCsv(entry.spreadsheetId, gid);
+    return parseDayScheduleCsv(csv, entry.date, entry.corpus);
   }
   const csv = await fetchSpreadsheetCsv(entry.spreadsheetId, entry.gid);
   return parseDayScheduleCsv(csv, entry.date, entry.corpus);

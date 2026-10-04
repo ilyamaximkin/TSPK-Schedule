@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import {
   useDaySchedule,
-  FALLBACK_GROUPS,
+  fallbackGroups,
   type DaySchedule,
 } from "./use-tspk";
 
@@ -35,13 +35,20 @@ export function GroupSelector({ schedule, date, corpus = 1, value, onChange }: P
   const daySchedule = useDaySchedule(schedule ? null : (date ?? null), corpus);
 
   const groups = useMemo(() => {
-    if (schedule && schedule.groups.length > 0) return schedule.groups;
-    if (daySchedule.data?.groups && daySchedule.data.groups.length > 0) {
-      return daySchedule.data.groups;
-    }
-    // Fallback to a static list so the dropdown is never empty.
-    return FALLBACK_GROUPS;
-  }, [schedule, daySchedule.data]);
+    // Always include the static fallback for the current corpus so the
+    // dropdown is never empty. Merge in any groups the API returns so
+    // newly-added groups still appear.
+    const fallback = fallbackGroups(corpus);
+    const apiGroups =
+      (schedule && schedule.groups.length > 0
+        ? schedule.groups
+        : daySchedule.data?.groups && daySchedule.data.groups.length > 0
+          ? daySchedule.data.groups
+          : []) ?? [];
+    const merged = Array.from(new Set([...fallback, ...apiGroups]));
+    merged.sort();
+    return merged;
+  }, [schedule, daySchedule.data, corpus]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -96,7 +103,7 @@ export function GroupSelector({ schedule, date, corpus = 1, value, onChange }: P
                   </CommandItem>
                 </CommandGroup>
               )}
-              <CommandGroup heading={groups === FALLBACK_GROUPS ? "Все группы" : "Группы на этот день"}>
+              <CommandGroup heading={"Все группы корпуса " + corpus}>
                 {filtered.slice(0, 200).map((g) => (
                   <CommandItem
                     key={g}

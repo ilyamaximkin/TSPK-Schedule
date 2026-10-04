@@ -29,10 +29,19 @@ export async function GET(req: NextRequest) {
     const calendar = await cached("tspk:calendar", 5 * 60 * 1000, () =>
       fetchTspkCalendar(),
     );
-    const entry = findCalendarEntry(calendar, date, corpus);
-    if (!entry || !entry.spreadsheetId) {
+    // For corpus 2, always use corpus-1's spreadsheetId (the TSPK calendar's
+    // corpus-2 entries point to outdated 2022 spreadsheets).
+    const lookupCorpus: 1 | 2 = corpus === 2 ? 1 : corpus;
+    const lookupEntry = findCalendarEntry(calendar, date, lookupCorpus);
+    if (!lookupEntry || !lookupEntry.spreadsheetId) {
       return NextResponse.json({ ok: true, groups: [] });
     }
+    const entry = {
+      date,
+      corpus,
+      spreadsheetId: lookupEntry.spreadsheetId,
+      gid: lookupEntry.gid,
+    };
 
     const schedule = await cached(
       `tspk:day:${corpus}:${date}`,

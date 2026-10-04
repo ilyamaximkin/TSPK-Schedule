@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, CalendarRange, CalendarClock, GraduationCap, ExternalLink, Info, Building2 } from "lucide-react";
+import { CalendarDays, CalendarRange, CalendarClock, History, CalendarMinus, GraduationCap, ExternalLink, Info, Building2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -28,8 +28,12 @@ export default function Home() {
   const [customDate, setCustomDate] = useState<Date | undefined>(new Date());
 
   const today = todayIso();
+  const yesterday = offsetIso(-1);
   const tomorrow = offsetIso(1);
+  // "Назад Неделя" — past 7 days starting 7 days ago (как в ShellShock Live "Назад Коток")
+  const backWeekStart = offsetIso(-7);
 
+  const yesterdaySched = useDaySchedule(yesterday, corpus);
   const todaySched = useDaySchedule(today, corpus);
   const tomorrowSched = useDaySchedule(tomorrow, corpus);
   // For the "by date" tab we use the selected Date object → ISO.
@@ -39,18 +43,18 @@ export default function Home() {
   const weekStart = today;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-50/40 via-background to-background dark:from-sky-950/10">
-      <header className="border-b bg-background/80 backdrop-blur sticky top-0 z-10">
+    <div className="min-h-screen bg-gradient-to-b from-sky-50/60 via-background to-background dark:from-sky-950/20 dark:via-background dark:to-background">
+      <header className="border-b border-sky-200/60 dark:border-sky-900/40 bg-gradient-to-r from-[#2e8db2] to-[#83bed4] dark:from-[#1d5a78] dark:to-[#2e6080] text-white backdrop-blur sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-white/15 ring-1 ring-white/30 flex items-center justify-center shrink-0">
               <GraduationCap className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <h1 className="font-semibold text-base sm:text-lg leading-tight truncate">
                 Расписание ТСПК
               </h1>
-              <p className="text-xs text-muted-foreground truncate">
+              <p className="text-xs text-white/80 truncate">
                 Бот для колледжа · {formatDateRu(today)}
               </p>
             </div>
@@ -59,7 +63,7 @@ export default function Home() {
             href={TSPK_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 shrink-0"
+            className="text-xs text-white/80 hover:text-white inline-flex items-center gap-1 shrink-0"
           >
             <span className="hidden sm:inline">Источник</span>
             <ExternalLink className="w-3.5 h-3.5" />
@@ -118,7 +122,11 @@ export default function Home() {
         </Card>
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="grid grid-cols-4 w-full">
+          <TabsList className="grid grid-cols-3 sm:grid-cols-6 w-full overflow-x-auto">
+            <TabsTrigger value="yesterday" className="flex flex-col sm:flex-row gap-1 items-center text-xs sm:text-sm">
+              <History className="w-4 h-4" />
+              <span>Вчера</span>
+            </TabsTrigger>
             <TabsTrigger value="today" className="flex flex-col sm:flex-row gap-1 items-center text-xs sm:text-sm">
               <CalendarClock className="w-4 h-4" />
               <span>Сегодня</span>
@@ -136,7 +144,21 @@ export default function Home() {
               <CalendarRange className="w-4 h-4" />
               <span>Неделя</span>
             </TabsTrigger>
+            <TabsTrigger value="back-week" className="flex flex-col sm:flex-row gap-1 items-center text-xs sm:text-sm">
+              <CalendarMinus className="w-4 h-4" />
+              <span className="hidden sm:inline">Назад Неделя</span>
+              <span className="sm:hidden">Назад</span>
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="yesterday" className="mt-4 sm:mt-5">
+            <ScheduleForGroup
+              schedule={yesterdaySched.data}
+              loading={yesterdaySched.loading}
+              error={yesterdaySched.error}
+              group={group}
+            />
+          </TabsContent>
 
           <TabsContent value="today" className="mt-4 sm:mt-5">
             <ScheduleForGroup
@@ -194,6 +216,14 @@ export default function Home() {
               Расписание на 7 дней, начиная с сегодняшнего.
             </p>
             <WeekView startDate={weekStart} group={group} corpus={corpus} />
+          </TabsContent>
+
+          <TabsContent value="back-week" className="mt-4 sm:mt-5">
+            <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1.5">
+              <CalendarMinus className="w-3.5 h-3.5" />
+              Назад Неделя — расписание за прошлые 7 дней (как «Назад Коток» в ShellShock Live).
+            </p>
+            <WeekView startDate={backWeekStart} group={group} corpus={corpus} />
           </TabsContent>
         </Tabs>
       </main>

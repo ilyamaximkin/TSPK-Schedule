@@ -32,14 +32,11 @@ export interface CalendarEntry {
 /**
  * Fallback list of all known TSPK groups, used by the GroupSelector when
  * the API hasn't returned a schedule yet (e.g. today is a weekend with no
- * spreadsheet and no groups list). This list was extracted from a live
- * CSV in October 2026; if new groups appear in the schedule, the API will
- * still surface them — this is only a UX fallback.
- *
- * Used for BOTH corpora, since corpus-2 schedules are typically a subset
- * of corpus-1 groups (and on shared days they're identical).
+ * spreadsheet and no groups list). These lists were extracted from live
+ * CSVs in October 2026 — if new groups appear in the schedule, the API
+ * will still surface them; this is only a UX fallback.
  */
-export const FALLBACK_GROUPS: string[] = [
+export const FALLBACK_GROUPS_1: string[] = [
   "Д-11", "Д-21", "Д-31", "Д-41",
   "ИСиП-21", "ИСиП-22", "ИСиП-23", "ИСиП-31", "ИСиП-32", "ИСиП-33", "ИСиП-34",
   "ИСиП-41", "ИСиП-42", "ИСиП-43", "ИСиП-44",
@@ -51,6 +48,28 @@ export const FALLBACK_GROUPS: string[] = [
   "РУПО-11", "РУПО-12", "РУПО-13",
   "СД-11", "СД-21", "СД-31", "СД-41",
 ];
+
+/** Corpus 2 (Ленинградская, 28) — physical culture, adaptive FC, preschool
+ *  edu, plus заочное отделение placeholder. */
+export const FALLBACK_GROUPS_2: string[] = [
+  // Физическая культура
+  "ФК-11", "ФК-12", "ФК-13",
+  "ФК-21", "ФК-22", "ФК-23",
+  "ФК-31", "ФК-32", "ФК-33",
+  "ФК-41", "ФК-42", "ФК-43", "ФК-44",
+  // Адаптивная физическая культура
+  "АФК-11", "АФК-12",
+  "АФК-21", "АФК-22",
+  "АФК-31", "АФК-32",
+  "АФК-41", "АФК-42",
+  // Дошкольное образование
+  "ДОУ-11",
+];
+
+/** Backwards-compat alias — picks the right list based on corpus. */
+export function fallbackGroups(corpus: 1 | 2): string[] {
+  return corpus === 2 ? FALLBACK_GROUPS_2 : FALLBACK_GROUPS_1;
+}
 
 /** Persist a value in localStorage (multi-tab safe). */
 export function useLocalStorage<T>(key: string, initial: T) {
