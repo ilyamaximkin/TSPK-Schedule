@@ -28,6 +28,18 @@ export function ScheduleForGroup({ schedule, loading, error, group, compact = fa
     return schedule.scheduleByGroup[group] ?? [];
   }, [schedule, group]);
 
+  // Group lessons by pair number — a single pair may contain multiple
+  // sub-lessons (e.g. "Классный час" + "МДК 09.01") sharing one pair number.
+  const grouped = useMemo(() => {
+    const map = new Map<number, typeof lessons>();
+    for (const l of lessons) {
+      const arr = map.get(l.number) ?? [];
+      arr.push(l);
+      map.set(l.number, arr);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a - b);
+  }, [lessons]);
+
   const header = useMemo(() => {
     if (!schedule) return null;
     return {
@@ -119,10 +131,10 @@ export function ScheduleForGroup({ schedule, loading, error, group, compact = fa
   return (
     <div className="space-y-3">
       {!compact && header && (
-        <ScheduleHeader date={header.date} dow={header.dow} count={lessons.length} />
+        <ScheduleHeader date={header.date} dow={header.dow} count={grouped.length} />
       )}
-      {lessons.map((l, i) => (
-        <LessonCard key={`${l.number}-${i}`} lesson={l} />
+      {grouped.map(([num, subLessons]) => (
+        <LessonCard key={num} lessons={subLessons} />
       ))}
     </div>
   );

@@ -314,55 +314,40 @@ function normalizeFallbackTime(s: string): string {
   return `${parts[0]}-${parts[1]}`;
 }
 
-function parseLessonCell(cell: string, fallbackTimeRaw: string): Lesson | null {
-  const raw = (cell || "").trim();
-  const fallbackTime = normalizeFallbackTime(fallbackTimeRaw);
-  if (!raw) return null;
-  if (raw === "ПРАКТИКА" || raw === "Практика" || raw === "ПРАКТИКА.") {
-    return {
-      number: 0,
-      time: fallbackTime,
-      subject: "Практика",
-      teacher: "",
-      room: "",
-      raw,
-    };
-  }
+/** Regex for a time range like "8.30-9.05" or "9.10 – 9.45". */
+const TIME_RANGE_RE = /(\d{1,2}\.\d{2})\s*[-–]\s*(\d{1,2}\.\d{2})/g;
+/** Regex for a teacher name like "Кондурар М.В." or "Шаров С.А.". */
+const TEACHER_RE = /([А-ЯЁ][а-яё]+(?:-[А-ЯЁ][а-яё]+)?)\s+([А-ЯЁ]\.\s*[А-ЯЁ]\.)/;
+/** Regex for a room like "каб.111" / "ауд. 12" / "корп.2". */
+const ROOM_RE = /((?:каб|ауд|корпус|корп)\.?\s*[\d\w-]+)/i;
 
-  const lines = raw
+/**
+ * Parse a single chunk of a lesson cell — extract subject, teacher, room.
+ * `chunk` is the text BETWEEN two time markers (or from start to first
+ * time marker). The time itself is passed separately as `rangeStr`.
+ */
+function parseLessonChunk(chunk: string, rangeStr: string): {
+  subject: string;
+  teacher: string;
+  room: string;
+} {
+  const lines = chunk
     .replace(/\r/g, "")
     .split("\n")
     .map((l) => l.replace(/\s+/g, " ").trim())
     .filter(Boolean);
 
-  let subject = "";
   let teacher = "";
   let room = "";
-  let time = fallbackTime;
-
-  const teacherRe = /([А-ЯЁ][а-яё]+(?:-[А-ЯЁ][а-яё]+)?)\s+([А-ЯЁ]\.\s*[А-ЯЁ]\.)/;
-  const roomRe = /((?:каб|ауд|корпус|корп)\.?\s*[\d\w-]+)/i;
-  const timeRangeRe = /(\d{1,2}\.\d{2})\s*[-–]\s*(\d{1,2}\.\d{2})/;
-  const timeSingleRe = /^(\d{1,2}\.\d{2})/;
 
   for (const line of lines) {
-    const tm = line.match(timeRangeRe);
-    if (tm) {
-      time = `${tm[1]}-${tm[2]}`;
-      continue;
-    }
-    if (line === lines[0]) {
-      const ts = line.match(timeSingleRe);
-      if (ts && fallbackTime === "") {
-        time = ts[1];
-      }
-    }
-    const tr = line.match(teacherRe);
+    const tr = line.match(TEACHER_RE);
     if (tr && !teacher) teacher = tr[0].trim();
-    const rm = line.match(roomRe);
+    const rm = line.match(ROOM_RE);
     if (rm && !room) room = rm[0].trim();
   }
 
+  // Subject: first non-empty line, with time / teacher / room stripped.
   const firstLine = lines[0] || "";
   let subj = firstLine;
   subj = subj.replace(/^\s*\d{1,2}\.\d{2}\s*[-–]\s*\d{1,2}\.\d{2}\s*/, "");
@@ -377,16 +362,99 @@ function parseLessonCell(cell: string, fallbackTimeRaw: string): Lesson | null {
       .replace(/^\s*\d{1,2}\.\d{2}\s+/, "")
       .trim();
   }
-  if (!subj) subj = raw;
+  if (!subj) subj = chunk.trim();
+  if (subj.length > 200) subj = subj.slice(0, 200) + "…";
 
-  return {
-    number: 0,
-    time,
-    subject: subj || raw,
-    teacher,
-    room,
-    raw,
-  };
+  return { subject: subj, teacher, room };
+}
+
+/**
+ * Parse a lesson cell. A cell may contain MULTIPLE lessons when a single
+ * pair is split (e.g. "8.30-9.05 Классный час … Кондурар М.В. каб.111
+ *   9.10-9.45 МДК 09.01 … Шаров С.А. каб.314"). In that case we return
+ * one Lesson per time range found.
+ *
+ * Returns an empty array if the cell is empty.
+ */
+function parseLessonCell(cell: string, fallbackTimeRaw: string): Lesson[] {
+  const raw = (cell || "").trim();
+  if (!raw) return [];
+  const fallbackTime = normalizeFallbackTime(fallbackTimeRaw);
+
+  // "ПРАКТИКА" — single virtual lesson.
+  if (raw === "ПРАКТИКА" || raw === "Практика" || raw === "ПРАКТИКА.") {
+    return [
+      {
+        number: 0,
+        time: fallbackTime,
+        subject: "Практика",
+        teacher: "",
+        room: "",
+        raw,
+      },
+    ];
+  }
+
+  // Find every time range in the cell. Each one starts a new sub-lesson.
+  // We collect matches with their start index, then split the cell text
+  // into chunks: text BEFORE the first range, then text BETWEEN ranges,
+  // then text AFTER the last range (the trailing chunk belongs to the
+  // last range's subject).
+  const matches: { start: number; end: number; from: string; to: string }[] = [];
+  // Reset regex state by using a fresh exec loop.
+  const re = new RegExp(TIME_RANGE_RE.source, "g");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(raw)) !== null) {
+    matches.push({
+      start: m.index,
+      end: m.index + m[0].length,
+      from: m[1],
+      to: m[2],
+    });
+  }
+
+  // No time ranges in the cell → single lesson with fallback time.
+  if (matches.length === 0) {
+    const { subject, teacher, room } = parseLessonChunk(raw, "");
+    return [
+      {
+        number: 0,
+        time: fallbackTime,
+        subject,
+        teacher,
+        room,
+        raw,
+      },
+    ];
+  }
+
+  // For each match i, the chunk it owns is the text from match[i].end
+  // up to match[i+1].start (or end of cell for the last one). The text
+  // BEFORE match[0].start (the cell prefix) is prepended to the first
+  // chunk — sometimes the subject starts on a line before the time.
+  const lessons: Lesson[] = [];
+  const prefix = raw.slice(0, matches[0].start).trim();
+
+  for (let i = 0; i < matches.length; i++) {
+    const m = matches[i];
+    const chunkStart = i === 0 ? m.end : m.end;
+    const chunkEnd = i + 1 < matches.length ? matches[i + 1].start : raw.length;
+    let chunk = raw.slice(chunkStart, chunkEnd);
+    if (i === 0 && prefix) {
+      chunk = prefix + "\n" + chunk;
+    }
+    const rangeStr = `${m.from}-${m.to}`;
+    const { subject, teacher, room } = parseLessonChunk(chunk, rangeStr);
+    lessons.push({
+      number: 0,
+      time: rangeStr,
+      subject,
+      teacher,
+      room,
+      raw: chunk.trim() || raw,
+    });
+  }
+  return lessons;
 }
 
 export function parseDayScheduleCsv(
@@ -448,22 +516,33 @@ export function parseDayScheduleCsv(
     for (let gi = 0; gi < currentGroups.length; gi++) {
       const g = currentGroups[gi];
       const cell = row[2 + gi] || "";
-      const lesson = parseLessonCell(cell, fallbackTime);
-      if (!lesson) continue;
-      lesson.number = num;
-      scheduleByGroup[g].push(lesson);
+      const lessons = parseLessonCell(cell, fallbackTime);
+      if (lessons.length === 0) continue;
+      for (const lesson of lessons) {
+        lesson.number = num;
+        scheduleByGroup[g].push(lesson);
+      }
     }
   }
 
+  // De-duplicate lessons per group (some tables list the same pair twice).
+  // We de-dup by (number, time, subject) — so two different subjects in the
+  // same pair (e.g. "Классный час" + "МДК 09.01") are BOTH kept.
   for (const g of Object.keys(scheduleByGroup)) {
     const seen = new Set<string>();
     scheduleByGroup[g] = scheduleByGroup[g].filter((l) => {
-      const key = `${l.number}|${l.subject}`;
+      const key = `${l.number}|${l.time}|${l.subject}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
-    scheduleByGroup[g].sort((a, b) => a.number - b.number);
+    scheduleByGroup[g].sort((a, b) => {
+      if (a.number !== b.number) return a.number - b.number;
+      // Within the same pair, sort by start time.
+      const aStart = a.time.match(/^(\d{1,2}\.\d{2})/)?.[1] ?? "";
+      const bStart = b.time.match(/^(\d{1,2}\.\d{2})/)?.[1] ?? "";
+      return aStart.localeCompare(bStart);
+    });
   }
 
   const groups = Array.from(groupSet).sort();

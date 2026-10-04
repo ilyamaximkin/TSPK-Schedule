@@ -43,7 +43,7 @@ export function WeekView({ startDate, group, corpus = 1 }: Props) {
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {items.map((it) => (
         <DayCard key={it.date} date={it.date} schedule={it.schedule} loading={it.loading} error={it.error} group={group} />
       ))}

@@ -3,44 +3,90 @@
 import { Clock, MapPin, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import type { Lesson } from "./use-tspk";
 
-export function LessonCard({ lesson }: { lesson: Lesson }) {
+/**
+ * LessonCard — accepts ALL sub-lessons for a single pair (most pairs have
+ * exactly one; pairs with a "Классный час" prepended have two).
+ */
+export function LessonCard({ lessons }: { lessons: Lesson[] }) {
+  if (lessons.length === 0) return null;
+  const num = lessons[0].number;
+  // Show the overall time range (first start → last end) as the badge.
+  const overallTime = lessons.length > 1 ? combineTimes(lessons) : lessons[0].time;
+
   return (
     <Card className="overflow-hidden border-l-4 border-l-primary/80 hover:shadow-md transition-shadow">
       <CardContent className="p-4 sm:p-5 flex gap-3 sm:gap-4 items-start">
         <div className="flex flex-col items-center justify-center shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-primary/10 text-primary">
           <span className="text-xs font-medium uppercase tracking-wide opacity-70">Пара</span>
-          <span className="text-xl sm:text-2xl font-bold leading-none">{lesson.number}</span>
+          <span className="text-xl sm:text-2xl font-bold leading-none">{num}</span>
         </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-base sm:text-lg leading-tight break-words">
-            {lesson.subject}
-          </h3>
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
-            {lesson.time && (
-              <span className="inline-flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
-                <span className="font-mono">{lesson.time}</span>
-              </span>
-            )}
-            {lesson.teacher && (
-              <span className="inline-flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5" />
-                {lesson.teacher}
-              </span>
-            )}
-            {lesson.room && (
-              <span className="inline-flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5" />
-                {lesson.room}
-              </span>
-            )}
-          </div>
+        <div className="flex-1 min-w-0 space-y-3">
+          {lessons.map((lesson, i) => (
+            <SubLesson
+              key={i}
+              lesson={lesson}
+              showTime={lessons.length > 1}
+              overallTimeBadge={i === 0 ? overallTime : undefined}
+            />
+          ))}
         </div>
       </CardContent>
     </Card>
   );
+}
+
+function SubLesson({
+  lesson,
+  showTime,
+  overallTimeBadge,
+}: {
+  lesson: Lesson;
+  showTime: boolean;
+  overallTimeBadge?: string;
+}) {
+  return (
+    <div className={cn("min-w-0", showTime && "border-b border-border/60 last:border-b-0 pb-3 last:pb-0")}>
+      <h3 className="font-semibold text-base sm:text-lg leading-tight break-words">
+        {lesson.subject}
+      </h3>
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
+        {showTime && lesson.time ? (
+          <span className="inline-flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            <span className="font-mono">{lesson.time}</span>
+          </span>
+        ) : overallTimeBadge ? (
+          <span className="inline-flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            <span className="font-mono">{overallTimeBadge}</span>
+          </span>
+        ) : null}
+        {lesson.teacher && (
+          <span className="inline-flex items-center gap-1.5">
+            <User className="h-3.5 w-3.5" />
+            {lesson.teacher}
+          </span>
+        )}
+        {lesson.room && (
+          <span className="inline-flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5" />
+            {lesson.room}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Combine the start of the first lesson with the end of the last one. */
+function combineTimes(lessons: Lesson[]): string {
+  const first = lessons[0].time.match(/^(\d{1,2}\.\d{2})/)?.[1] ?? "";
+  const last = lessons[lessons.length - 1].time.match(/(\d{1,2}\.\d{2})$/)?.[1] ?? "";
+  if (first && last) return `${first}-${last}`;
+  return lessons[0].time;
 }
 
 export function LessonCardSkeleton() {
