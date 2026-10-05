@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, CalendarRange, CalendarClock, History, CalendarMinus, GraduationCap, ExternalLink, Info, Building2 } from "lucide-react";
+import { CalendarDays, CalendarRange, CalendarClock, History, CalendarMinus, GraduationCap, ExternalLink, Info, Building2, Download } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -16,22 +16,31 @@ import {
   useLocalStorage,
   todayIso,
   offsetIso,
+  weekStartIso,
   formatDateRu,
 } from "@/components/schedule/use-tspk";
 
 const TSPK_URL = "https://tspk.org/studentam/novoe-raspisanie-demo.html";
 
 export default function Home() {
-  const [group, setGroup] = useLocalStorage<string>("tspk:group", "");
   const [tab, setTab] = useLocalStorage<string>("tspk:tab", "today");
   const [corpus, setCorpus] = useLocalStorage<1 | 2>("tspk:corpus", 1);
+  // Per-corpus group: each corpus remembers its own group independently,
+  // so switching corpus auto-restores the previously chosen group for it.
+  const [group1, setGroup1] = useLocalStorage<string>("tspk:group:1", "");
+  const [group2, setGroup2] = useLocalStorage<string>("tspk:group:2", "");
+  const group = corpus === 2 ? group2 : group1;
+  const setGroup = corpus === 2 ? setGroup2 : setGroup1;
   const [customDate, setCustomDate] = useState<Date | undefined>(new Date());
 
   const today = todayIso();
   const yesterday = offsetIso(-1);
   const tomorrow = offsetIso(1);
-  // "Назад Неделя" — past 7 days starting 7 days ago (как в ShellShock Live "Назад Коток")
-  const backWeekStart = offsetIso(-7);
+  // "Неделя" = current calendar week (Mon-Sun). "Назад Неделя" = previous
+  // calendar week (last Mon - last Sun). Both are calculated from the
+  // Monday of the relevant week — independent of today's weekday.
+  const weekStart = weekStartIso(0);
+  const backWeekStart = weekStartIso(-1);
 
   const yesterdaySched = useDaySchedule(yesterday, corpus);
   const todaySched = useDaySchedule(today, corpus);
@@ -39,8 +48,6 @@ export default function Home() {
   // For the "by date" tab we use the selected Date object → ISO.
   const customIso = customDate ? isoFromJsDate(customDate) : today;
   const customSched = useDaySchedule(customIso, corpus);
-
-  const weekStart = today;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50/60 via-background to-background dark:from-sky-950/20 dark:via-background dark:to-background">
@@ -67,6 +74,15 @@ export default function Home() {
           >
             <span className="hidden sm:inline">Источник</span>
             <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+          <a
+            href="/tspk-bot.zip"
+            download
+            className="text-xs text-white/90 hover:text-white inline-flex items-center gap-1 shrink-0 bg-white/15 hover:bg-white/25 rounded-md px-2 py-1.5 transition-colors"
+            title="Скачать исходный код проекта (zip, ~99 КБ)"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Код проекта</span>
           </a>
           <ThemeToggle />
         </div>
@@ -212,7 +228,7 @@ export default function Home() {
           <TabsContent value="week" className="mt-4 sm:mt-5">
             <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1.5">
               <Info className="w-3.5 h-3.5" />
-              Расписание на 7 дней, начиная с сегодняшнего.
+              Текущая неделя (понедельник — воскресенье).
             </p>
             <WeekView startDate={weekStart} group={group} corpus={corpus} />
           </TabsContent>
@@ -220,7 +236,7 @@ export default function Home() {
           <TabsContent value="back-week" className="mt-4 sm:mt-5">
             <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1.5">
               <CalendarMinus className="w-3.5 h-3.5" />
-              Назад Неделя — расписание за прошлые 7 дней (как «Назад Коток» в ShellShock Live).
+              Прошлая неделя (как «Назад Коток» в ShellShock Live — с прошлого понедельника по прошлое воскресенье).
             </p>
             <WeekView startDate={backWeekStart} group={group} corpus={corpus} />
           </TabsContent>

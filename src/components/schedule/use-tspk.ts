@@ -136,6 +136,25 @@ export function todayIso(now = new Date()): string {
   return `${y}-${mo}-${d}`;
 }
 
+/**
+ * ISO date of the Monday of the week containing `now` (or the week offset
+ * by `weekOffset` weeks). Week starts on Monday (Russian calendar).
+ *
+ * weekOffset=0 → Monday of the current week.
+ * weekOffset=-1 → Monday of the previous week.
+ *
+ * Works regardless of which day of the week `now` is — Sunday will still
+ * give the Monday that started THIS week, not next week.
+ */
+export function weekStartIso(weekOffset: number = 0, now = new Date()): string {
+  const d = new Date(now);
+  // JS getDay(): 0=Sun, 1=Mon, ..., 6=Sat. We want days since Monday.
+  // If today is Sunday (0) → 6 days since Monday. Else (getDay() - 1).
+  const daysSinceMonday = d.getDay() === 0 ? 6 : d.getDay() - 1;
+  d.setDate(d.getDate() - daysSinceMonday + weekOffset * 7);
+  return todayIso(d);
+}
+
 /** ISO date for `n` days from today. */
 export function offsetIso(days: number): string {
   const d = new Date();

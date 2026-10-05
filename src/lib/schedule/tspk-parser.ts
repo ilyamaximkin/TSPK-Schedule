@@ -501,7 +501,20 @@ export function parseDayScheduleCsv(
       for (let c = 2; c < row.length; c++) {
         const g = normalizeGroupName(row[c] || "");
         if (!g) continue;
-        if (g.length > 60 || /согласовано|директора|зам\./i.test(g)) continue;
+        if (g.length > 60 || /согласовано|директора|зам\./i.test(g)) {
+          // The TSPK editors sometimes glue a group name (ДОУ-11) onto
+          // the end of the "Согласовано:" cell. Salvage any group-like
+          // substring out of it before skipping.
+          const salvaged = g.match(/[А-ЯЁ]{2,6}-\d{2}/g);
+          if (salvaged) {
+            for (const sg of salvaged) {
+              currentGroups.push(sg);
+              groupSet.add(sg);
+              if (!scheduleByGroup[sg]) scheduleByGroup[sg] = [];
+            }
+          }
+          continue;
+        }
         currentGroups.push(g);
         groupSet.add(g);
         if (!scheduleByGroup[g]) scheduleByGroup[g] = [];
