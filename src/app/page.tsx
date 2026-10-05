@@ -79,7 +79,7 @@ export default function Home() {
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1 mb-2 block">
               Корпус
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <CorpusButton
                 active={corpus === 1}
                 onClick={() => setCorpus(1)}
@@ -122,30 +122,31 @@ export default function Home() {
         </Card>
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="flex w-full overflow-x-auto sm:grid sm:grid-cols-6 sm:overflow-visible h-auto min-h-[44px]">
-            <TabsTrigger value="yesterday" className="flex-row gap-1.5 shrink-0 text-xs sm:text-sm px-3 py-2.5 min-h-[44px]">
+          <TabsList className="grid grid-cols-3 sm:grid-cols-6 w-full h-auto">
+            <TabsTrigger value="yesterday" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <History className="w-4 h-4 shrink-0" />
               <span>Вчера</span>
             </TabsTrigger>
-            <TabsTrigger value="today" className="flex-row gap-1.5 shrink-0 text-xs sm:text-sm px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="today" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <CalendarClock className="w-4 h-4 shrink-0" />
               <span>Сегодня</span>
             </TabsTrigger>
-            <TabsTrigger value="tomorrow" className="flex-row gap-1.5 shrink-0 text-xs sm:text-sm px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="tomorrow" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <CalendarDays className="w-4 h-4 shrink-0" />
               <span>Завтра</span>
             </TabsTrigger>
-            <TabsTrigger value="date" className="flex-row gap-1.5 shrink-0 text-xs sm:text-sm px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="date" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <CalendarRange className="w-4 h-4 shrink-0" />
               <span>Дата</span>
             </TabsTrigger>
-            <TabsTrigger value="week" className="flex-row gap-1.5 shrink-0 text-xs sm:text-sm px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="week" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <CalendarRange className="w-4 h-4 shrink-0" />
               <span>Неделя</span>
             </TabsTrigger>
-            <TabsTrigger value="back-week" className="flex-row gap-1.5 shrink-0 text-xs sm:text-sm px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="back-week" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <CalendarMinus className="w-4 h-4 shrink-0" />
-              <span>Назад Нед</span>
+              <span className="hidden sm:inline">Назад Неделя</span>
+              <span className="sm:hidden">Назад</span>
             </TabsTrigger>
           </TabsList>
 
