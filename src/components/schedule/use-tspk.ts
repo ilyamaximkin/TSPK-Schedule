@@ -175,8 +175,14 @@ export function useDaySchedule(date: string | null, corpus: 1 | 2 = 1) {
       return;
     }
     let cancelled = false;
-    setLoading(true);
+    // Reset stale data IMMEDIATELY when date/corpus changes — otherwise
+    // the UI flashes "group not found" because the previous schedule
+    // (for the other corpus) doesn't contain the new corpus's groups.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setData(null);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setError(null);
+    setLoading(true);
     fetch(`/api/schedule/day?date=${encodeURIComponent(date)}&corpus=${corpus}`)
       .then(async (r) => {
         if (!r.ok) {
@@ -218,6 +224,11 @@ export function useWeekSchedule(startDate: string | null, days: number, corpus: 
       return;
     }
     let cancelled = false;
+    // Reset stale data immediately when corpus/startDate changes — same
+    // race condition as in useDaySchedule (otherwise we briefly render
+    // yesterday's corpus with today's selected group).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setItems([]);
     setLoading(true);
 
     const base = new Date(startDate + "T00:00:00");

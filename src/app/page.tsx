@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, CalendarRange, CalendarClock, History, CalendarMinus, GraduationCap, ExternalLink, Info, Building2, Download } from "lucide-react";
+import { CalendarDays, CalendarRange, CalendarClock, History, CalendarMinus, GraduationCap, ExternalLink, Info, Building2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -74,15 +74,6 @@ export default function Home() {
           >
             <span className="hidden sm:inline">Источник</span>
             <ExternalLink className="w-3.5 h-3.5" />
-          </a>
-          <a
-            href="/tspk-bot.zip"
-            download
-            className="text-xs text-white/90 hover:text-white inline-flex items-center gap-1 shrink-0 bg-white/15 hover:bg-white/25 rounded-md px-2 py-1.5 transition-colors"
-            title="Скачать исходный код проекта (zip, ~99 КБ)"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Код проекта</span>
           </a>
           <ThemeToggle />
         </div>
