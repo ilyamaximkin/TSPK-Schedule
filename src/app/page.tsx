@@ -87,6 +87,9 @@ export default function Home() {
               </p>
             </div>
           </div>
+          <div className="flex-1 flex justify-center">
+            <LiveClock className="text-white" />
+          </div>
           <a
             href={TSPK_URL}
             target="_blank"
@@ -104,12 +107,9 @@ export default function Home() {
         {/* Corpus selector */}
         <Card>
           <CardContent className="p-4 sm:p-5">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1">
-                Корпус
-              </label>
-              <LiveClock className="text-muted-foreground" />
-            </div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1 mb-2 block">
+              Корпус
+            </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <CorpusButton
                 active={corpus === 1}
@@ -124,9 +124,6 @@ export default function Home() {
                 subtitle="Ленинградская, 28"
               />
             </div>
-            <p className="text-xs text-muted-foreground mt-2 pl-1">
-              Сейчас <LiveClock className="text-muted-foreground" />. После 22:00 надпись «Расписания пока нет» сменится на «Занятий нет».
-            </p>
           </CardContent>
         </Card>
 
