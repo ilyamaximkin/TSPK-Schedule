@@ -218,16 +218,18 @@ export function currentHourInTz(now = new Date(), tz: string = TSPK_TZ): number 
 
 /**
  * Decide whether the "no lessons" state for a given date is FINAL (the day
- * is genuinely over — weekend, past, or today's 22:00 deadline has passed)
- * or TEMPORARY (a weekday we're still waiting on the TSPK editors to upload).
+ * is genuinely over — Sunday, past, or today's 22:00 deadline has passed)
+ * or TEMPORARY (any other day we're still waiting on the TSPK editors).
  *
- *  - Weekend (Sat/Sun) → final — "Выходной"
- *  - Past weekday → final — "Занятий нет" (the day is gone, schedule
- *    won't appear anymore)
+ *  - Sunday → final — "Выходной" (TSPK never has Sunday classes)
+ *  - Past day → final — "Занятий нет" (the day is gone)
  *  - Today + hour >= 22:00 → final — TSPK uploads by 22:00; if we still
  *    don't have a schedule, it's a real holiday
  *  - Today + hour < 22:00 → temporary — "Расписания пока нет"
- *  - Future weekday → temporary — "Расписания пока нет"
+ *  - Future day (Mon-Sat) → temporary — "Расписания пока нет"
+ *
+ * Saturday is treated like any weekday: TSPK sometimes has Saturday
+ * classes, so "no schedule" might just mean "not uploaded yet".
  */
 export function noLessonsIsFinal(
   isoDate: string,
@@ -235,9 +237,8 @@ export function noLessonsIsFinal(
   tz: string = TSPK_TZ,
 ): boolean {
   const d = new Date(isoDate + "T00:00:00");
-  // Day of week: 0=Sun, 6=Sat. Weekend = Sat/Sun.
-  const dow = d.getDay();
-  if (dow === 0 || dow === 6) return true;
+  // Day of week: 0=Sun, 6=Sat. Only Sunday is always final.
+  if (d.getDay() === 0) return true;
 
   const today = todayIso(now);
   if (isoDate < today) return true; // past day
