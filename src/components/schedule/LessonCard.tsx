@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, MapPin, User } from "lucide-react";
+import { Clock, MapPin, User, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -9,11 +9,14 @@ import type { Lesson } from "./use-tspk";
 /**
  * LessonCard — accepts ALL sub-lessons for a single pair (most pairs have
  * exactly one; pairs with a "Классный час" prepended have two).
+ *
+ * When `showGroup` is true (filtering by teacher/room), each sub-lesson
+ * shows its group as a small badge next to the title — otherwise the user
+ * has no idea which group each pair is for.
  */
-export function LessonCard({ lessons }: { lessons: Lesson[] }) {
+export function LessonCard({ lessons, showGroup = false }: { lessons: Lesson[]; showGroup?: boolean }) {
   if (lessons.length === 0) return null;
   const num = lessons[0].number;
-  // Show the overall time range (first start → last end) as the badge.
   const overallTime = lessons.length > 1 ? combineTimes(lessons) : lessons[0].time;
   const multiple = lessons.length > 1;
 
@@ -25,14 +28,19 @@ export function LessonCard({ lessons }: { lessons: Lesson[] }) {
           <span className="text-lg sm:text-2xl font-bold leading-none">{num}</span>
         </div>
         <div className="flex-1 min-w-0 space-y-2 sm:space-y-3">
-          {lessons.map((lesson, i) => (
-            <SubLesson
-              key={i}
-              lesson={lesson}
-              multiple={multiple}
-              overallTimeBadge={i === 0 ? overallTime : undefined}
-            />
-          ))}
+          {lessons.map((lesson, i) => {
+            const group = (lesson as Lesson & { group?: string }).group;
+            return (
+              <SubLesson
+                key={i}
+                lesson={lesson}
+                multiple={multiple}
+                overallTimeBadge={i === 0 ? overallTime : undefined}
+                showGroup={showGroup && !!group}
+                group={group}
+              />
+            );
+          })}
         </div>
       </CardContent>
     </Card>
@@ -43,13 +51,25 @@ function SubLesson({
   lesson,
   multiple,
   overallTimeBadge,
+  showGroup,
+  group,
 }: {
   lesson: Lesson;
   multiple: boolean;
   overallTimeBadge?: string;
+  showGroup: boolean;
+  group?: string;
 }) {
   return (
     <div className={cn("min-w-0", multiple && "border-b border-border/60 last:border-b-0 pb-2 sm:pb-3 last:pb-0")}>
+      {showGroup && group && (
+        <div className="mb-1">
+          <Badge variant="secondary" className="font-mono text-xs">
+            <Users className="w-3 h-3 mr-1" />
+            {group}
+          </Badge>
+        </div>
+      )}
       <h3 className="font-semibold text-sm sm:text-lg leading-tight break-words">
         {lesson.subject}
       </h3>

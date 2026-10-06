@@ -22,6 +22,74 @@ export interface DaySchedule {
   noLessons: boolean;
 }
 
+/** View mode: filter by group / teacher / room. */
+export type ViewMode = "group" | "teacher" | "room";
+
+/** A Lesson with the group name attached — used when filtering by teacher
+ *  or room (where the user needs to know which group the lesson belongs to). */
+export interface LessonWithGroup extends Lesson {
+  group: string;
+}
+
+/** Flatten scheduleByGroup into a single array of {Lesson + group}. */
+export function flattenSchedule(schedule: DaySchedule): LessonWithGroup[] {
+  const out: LessonWithGroup[] = [];
+  for (const [group, lessons] of Object.entries(schedule.scheduleByGroup)) {
+    for (const lesson of lessons) {
+      out.push({ ...lesson, group });
+    }
+  }
+  return out;
+}
+
+/** All distinct teacher names in the schedule. */
+export function extractTeachers(schedule: DaySchedule): string[] {
+  const set = new Set<string>();
+  for (const lessons of Object.values(schedule.scheduleByGroup)) {
+    for (const l of lessons) {
+      if (l.teacher) set.add(l.teacher);
+    }
+  }
+  return Array.from(set).sort((a, b) => a.localeCompare(b, "ru"));
+}
+
+/** All distinct room labels in the schedule. */
+export function extractRooms(schedule: DaySchedule): string[] {
+  const set = new Set<string>();
+  for (const lessons of Object.values(schedule.scheduleByGroup)) {
+    for (const l of lessons) {
+      if (l.room) set.add(l.room);
+    }
+  }
+  return Array.from(set).sort((a, b) => a.localeCompare(b, "ru"));
+}
+
+/**
+ * Filter the schedule's flat lesson list by the active view mode and value.
+ * Returns lessons sorted by (pair number, start time, group).
+ */
+export function filterLessons(
+  schedule: DaySchedule,
+  mode: ViewMode,
+  value: string,
+): LessonWithGroup[] {
+  const flat = flattenSchedule(schedule);
+  const matches = flat.filter((l) => {
+    if (mode === "group") return l.group === value;
+    if (mode === "teacher") return l.teacher === value;
+    if (mode === "room") return l.room === value;
+    return false;
+  });
+  matches.sort((a, b) => {
+    if (a.number !== b.number) return a.number - b.number;
+    const at = a.time.match(/^(\d{1,2}\.\d{2})/)?.[1] ?? "";
+    const bt = b.time.match(/^(\d{1,2}\.\d{2})/)?.[1] ?? "";
+    if (at !== bt) return at.localeCompare(bt);
+    return a.group.localeCompare(b.group);
+  });
+  return matches;
+}
+
 export interface CalendarEntry {
   date: string;
   corpus: 1 | 2;
@@ -134,6 +202,50 @@ export function todayIso(now = new Date()): string {
   const mo = String(now.getMonth() + 1).padStart(2, "0");
   const d = String(now.getDate()).padStart(2, "0");
   return `${y}-${mo}-${d}`;
+}
+
+/** Timezone for the bot — Samara / GMT+4 (no DST). Override via param. */
+export const TSPK_TZ = "Europe/Samara";
+
+/**
+ * Returns the current hour (0-23) in the bot's timezone (Samara / GMT+4).
+ */
+export function currentHourInTz(now = new Date(), tz: string = TSPK_TZ): number {
+  // en-GB gives "HH:MM:SS" — hour is the first 2 chars.
+  const s = now.toLocaleTimeString("en-GB", { timeZone: tz, hour: "2-digit" });
+  return parseInt(s.slice(0, 2), 10);
+}
+
+/**
+ * Decide whether the "no lessons" state for a given date is FINAL (the day
+ * is genuinely over — weekend, past, or today's 22:00 deadline has passed)
+ * or TEMPORARY (a weekday we're still waiting on the TSPK editors to upload).
+ *
+ *  - Weekend (Sat/Sun) → final — "Выходной"
+ *  - Past weekday → final — "Занятий нет" (the day is gone, schedule
+ *    won't appear anymore)
+ *  - Today + hour >= 22:00 → final — TSPK uploads by 22:00; if we still
+ *    don't have a schedule, it's a real holiday
+ *  - Today + hour < 22:00 → temporary — "Расписания пока нет"
+ *  - Future weekday → temporary — "Расписания пока нет"
+ */
+export function noLessonsIsFinal(
+  isoDate: string,
+  now: Date = new Date(),
+  tz: string = TSPK_TZ,
+): boolean {
+  const d = new Date(isoDate + "T00:00:00");
+  // Day of week: 0=Sun, 6=Sat. Weekend = Sat/Sun.
+  const dow = d.getDay();
+  if (dow === 0 || dow === 6) return true;
+
+  const today = todayIso(now);
+  if (isoDate < today) return true; // past day
+  if (isoDate === today) {
+    return currentHourInTz(now, tz) >= 22;
+  }
+  // future day → still waiting
+  return false;
 }
 
 /**

@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { GroupSelector } from "@/components/schedule/GroupSelector";
+import { LiveClock } from "@/components/live-clock";
+import { EntrySelector } from "@/components/schedule/EntrySelector";
 import { ScheduleForGroup } from "@/components/schedule/ScheduleForGroup";
 import { WeekView } from "@/components/schedule/WeekView";
 import {
@@ -18,6 +19,7 @@ import {
   offsetIso,
   weekStartIso,
   formatDateRu,
+  type ViewMode,
 } from "@/components/schedule/use-tspk";
 
 const TSPK_URL = "https://tspk.org/studentam/novoe-raspisanie-demo.html";
@@ -25,12 +27,31 @@ const TSPK_URL = "https://tspk.org/studentam/novoe-raspisanie-demo.html";
 export default function Home() {
   const [tab, setTab] = useLocalStorage<string>("tspk:tab", "today");
   const [corpus, setCorpus] = useLocalStorage<1 | 2>("tspk:corpus", 1);
+  // View mode: filter the schedule by group / teacher / room.
+  const [mode, setMode] = useLocalStorage<ViewMode>("tspk:mode", "group");
   // Per-corpus group: each corpus remembers its own group independently,
   // so switching corpus auto-restores the previously chosen group for it.
   const [group1, setGroup1] = useLocalStorage<string>("tspk:group:1", "");
   const [group2, setGroup2] = useLocalStorage<string>("tspk:group:2", "");
-  const group = corpus === 2 ? group2 : group1;
-  const setGroup = corpus === 2 ? setGroup2 : setGroup1;
+  // Per-mode teacher/room selection (shared across corpora — teachers and
+  // rooms aren't corpus-scoped).
+  const [teacher, setTeacher] = useLocalStorage<string>("tspk:teacher", "");
+  const [room, setRoom] = useLocalStorage<string>("tspk:room", "");
+
+  // The "value" we filter by depends on the active mode.
+  const value =
+    mode === "group"
+      ? (corpus === 2 ? group2 : group1)
+      : mode === "teacher"
+        ? teacher
+        : room;
+  const setValue =
+    mode === "group"
+      ? (corpus === 2 ? setGroup2 : setGroup1)
+      : mode === "teacher"
+        ? setTeacher
+        : setRoom;
+
   const [customDate, setCustomDate] = useState<Date | undefined>(new Date());
 
   const today = todayIso();
@@ -83,9 +104,12 @@ export default function Home() {
         {/* Corpus selector */}
         <Card>
           <CardContent className="p-4 sm:p-5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1 mb-2 block">
-              Корпус
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1">
+                Корпус
+              </label>
+              <LiveClock className="text-muted-foreground" />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <CorpusButton
                 active={corpus === 1}
@@ -100,25 +124,47 @@ export default function Home() {
                 subtitle="Ленинградская, 28"
               />
             </div>
+            <p className="text-xs text-muted-foreground mt-2 pl-1">
+              Сейчас <LiveClock className="text-muted-foreground" />. После 22:00 надпись «Расписания пока нет» сменится на «Занятий нет».
+            </p>
           </CardContent>
         </Card>
 
-        {/* Group selector */}
+        {/* View mode + entry selector */}
         <Card>
           <CardContent className="p-4 sm:p-5">
-            <GroupSelector
+            {/* Mode toggle */}
+            <div className="grid grid-cols-3 gap-1 p-1 bg-muted/40 rounded-lg mb-3">
+              <ModeButton
+                active={mode === "group"}
+                onClick={() => setMode("group")}
+                label="Группа"
+              />
+              <ModeButton
+                active={mode === "teacher"}
+                onClick={() => setMode("teacher")}
+                label="Преподаватель"
+              />
+              <ModeButton
+                active={mode === "room"}
+                onClick={() => setMode("room")}
+                label="Кабинет"
+              />
+            </div>
+            <EntrySelector
+              mode={mode}
               schedule={todaySched.data}
               date={today}
               corpus={corpus}
-              value={group}
-              onChange={setGroup}
+              value={value}
+              onChange={setValue}
             />
-            {group && (
+            {value && (
               <p className="text-xs text-muted-foreground mt-2 pl-1">
-                Группа «<span className="font-medium text-foreground">{group}</span>» сохранена в этом браузере.
+                {mode === "group" ? "Группа" : mode === "teacher" ? "Преподаватель" : "Кабинет"} «<span className="font-medium text-foreground">{value}</span>» сохранён в этом браузере.
                 {" "}
                 <button
-                  onClick={() => setGroup("")}
+                  onClick={() => setValue("")}
                   className="underline hover:text-foreground"
                 >
                   Сменить
@@ -162,7 +208,8 @@ export default function Home() {
               schedule={yesterdaySched.data}
               loading={yesterdaySched.loading}
               error={yesterdaySched.error}
-              group={group}
+              mode={mode}
+              value={value}
             />
           </TabsContent>
 
@@ -171,7 +218,8 @@ export default function Home() {
               schedule={todaySched.data}
               loading={todaySched.loading}
               error={todaySched.error}
-              group={group}
+              mode={mode}
+              value={value}
             />
           </TabsContent>
 
@@ -180,7 +228,8 @@ export default function Home() {
               schedule={tomorrowSched.data}
               loading={tomorrowSched.loading}
               error={tomorrowSched.error}
-              group={group}
+              mode={mode}
+              value={value}
             />
           </TabsContent>
 
@@ -210,7 +259,8 @@ export default function Home() {
                   schedule={customSched.data}
                   loading={customSched.loading}
                   error={customSched.error}
-                  group={group}
+                  mode={mode}
+                  value={value}
                 />
               </div>
             </div>
@@ -221,7 +271,7 @@ export default function Home() {
               <Info className="w-3.5 h-3.5" />
               Текущая неделя (понедельник — воскресенье).
             </p>
-            <WeekView startDate={weekStart} group={group} corpus={corpus} />
+            <WeekView startDate={weekStart} mode={mode} value={value} corpus={corpus} />
           </TabsContent>
 
           <TabsContent value="back-week" className="mt-4 sm:mt-5">
@@ -229,7 +279,7 @@ export default function Home() {
               <CalendarMinus className="w-3.5 h-3.5" />
               Прошлая неделя (как «Назад Коток» в ShellShock Live — с прошлого понедельника по прошлое воскресенье).
             </p>
-            <WeekView startDate={backWeekStart} group={group} corpus={corpus} />
+            <WeekView startDate={backWeekStart} mode={mode} value={value} corpus={corpus} />
           </TabsContent>
         </Tabs>
       </main>
@@ -262,6 +312,32 @@ function isoFromJsDate(d: Date): string {
 
 /** Corpus toggle button — used to switch between corpus 1 (Мурысева 84)
  * and corpus 2 (Ленинградская 28). */
+function ModeButton({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        "py-1.5 px-2 rounded-md text-xs sm:text-sm font-medium transition-colors " +
+        (active
+          ? "bg-background text-foreground shadow-sm"
+          : "text-muted-foreground hover:text-foreground")
+      }
+      aria-pressed={active}
+    >
+      {label}
+    </button>
+  );
+}
+
 function CorpusButton({
   active,
   onClick,
