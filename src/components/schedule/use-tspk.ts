@@ -291,9 +291,7 @@ export function useDaySchedule(date: string | null, corpus: 1 | 2 = 1) {
     // Reset stale data IMMEDIATELY when date/corpus changes — otherwise
     // the UI flashes "group not found" because the previous schedule
     // (for the other corpus) doesn't contain the new corpus's groups.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setData(null);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setError(null);
     setLoading(true);
     fetch(`/api/schedule/day?date=${encodeURIComponent(date)}&corpus=${corpus}`)
@@ -322,6 +320,30 @@ export function useDaySchedule(date: string | null, corpus: 1 | 2 = 1) {
     };
   }, [date, corpus]);
 
+  // Silent in-place refresh when the schedule watcher detects that this
+  // day's schedule appeared or changed (tspk:schedule-updated event).
+  useEffect(() => {
+    if (!date) return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ date?: string }>).detail;
+      if (detail?.date && detail.date !== date) return;
+      let cancelled = false;
+      fetch(`/api/schedule/day?date=${encodeURIComponent(date)}&corpus=${corpus}`)
+        .then(async (r) => (r.ok ? r.json() : null))
+        .then((j) => {
+          if (!cancelled && j?.ok) setData(j.schedule as DaySchedule);
+        })
+        .catch(() => {
+          /* keep current data on refresh errors */
+        });
+      return () => {
+        cancelled = true;
+      };
+    };
+    window.addEventListener("tspk:schedule-updated", handler);
+    return () => window.removeEventListener("tspk:schedule-updated", handler);
+  }, [date, corpus]);
+
   return { data, error, loading };
 }
 
@@ -340,7 +362,6 @@ export function useWeekSchedule(startDate: string | null, days: number, corpus: 
     // Reset stale data immediately when corpus/startDate changes — same
     // race condition as in useDaySchedule (otherwise we briefly render
     // yesterday's corpus with today's selected group).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setItems([]);
     setLoading(true);
 
@@ -381,6 +402,46 @@ export function useWeekSchedule(startDate: string | null, days: number, corpus: 
     return () => {
       cancelled = true;
     };
+  }, [startDate, days, corpus]);
+
+  // Silent in-place refresh when the watcher detects a schedule change.
+  useEffect(() => {
+    if (!startDate) return;
+    const handler = () => {
+      let cancelled = false;
+      const base = new Date(startDate + "T00:00:00");
+      const dates: string[] = [];
+      for (let i = 0; i < days; i++) {
+        const d = new Date(base);
+        d.setDate(d.getDate() + i);
+        dates.push(todayIso(d));
+      }
+      Promise.all(
+        dates.map((date) =>
+          fetch(`/api/schedule/day?date=${encodeURIComponent(date)}&corpus=${corpus}`)
+            .then(async (r) => (r.ok ? r.json() : null))
+            .then((j) => ({
+              date,
+              schedule: j?.ok ? (j.schedule as DaySchedule) : null,
+              error: j?.ok ? null : (j?.error ?? "Error"),
+              loading: false,
+            }))
+            .catch(() => ({
+              date,
+              schedule: null,
+              error: "Network error",
+              loading: false,
+            })),
+        ),
+      ).then((results) => {
+        if (!cancelled) setItems(results);
+      });
+      return () => {
+        cancelled = true;
+      };
+    };
+    window.addEventListener("tspk:schedule-updated", handler);
+    return () => window.removeEventListener("tspk:schedule-updated", handler);
   }, [startDate, days, corpus]);
 
   return { items, loading };

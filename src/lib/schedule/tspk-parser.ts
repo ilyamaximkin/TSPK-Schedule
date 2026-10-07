@@ -17,6 +17,7 @@
  */
 
 import * as cheerio from "cheerio";
+import type { AnyNode } from "domhandler";
 import { parse as parseCsvString } from "csv-parse/sync";
 
 const TSPK_URL = "https://tspk.org/studentam/novoe-raspisanie-demo.html";
@@ -142,7 +143,7 @@ export function parseCalendarHtml(html: string): CalendarEntry[] {
     })
     .first();
 
-  const parseTables = (container: cheerio.Cheerio<cheerio.AnyNode>, corpus: 1 | 2) => {
+  const parseTables = (container: cheerio.Cheerio<AnyNode>, corpus: 1 | 2) => {
     container.find(".cal").each((_, cal) => {
       const caption = $(cal).find("caption").first().text().replace(/[«»]/g, " ").trim();
       const m = caption.match(/([А-Яа-яЁё]+)\s+(\d{4})/);

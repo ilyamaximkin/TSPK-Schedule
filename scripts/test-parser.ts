@@ -36,7 +36,7 @@ async function main() {
     const sampleGroup = sched.groups[0];
     if (sampleGroup) {
       console.log(`\nSchedule for group ${sampleGroup}:`);
-      for (const l of sched.scheduleGroup?.[sampleGroup] || sched.scheduleByGroup[sampleGroup] || []) {
+      for (const l of sched.scheduleByGroup[sampleGroup] || []) {
         console.log(
           `  #${l.number} | ${l.time} | ${l.subject} | ${l.teacher} | ${l.room}`,
         );

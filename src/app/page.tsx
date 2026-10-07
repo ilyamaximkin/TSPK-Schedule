@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CalendarDays, CalendarRange, CalendarClock, History, CalendarMinus, GraduationCap, ExternalLink, Info, Building2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
+import { ru } from "react-day-picker/locale";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import { LiveClock } from "@/components/live-clock";
 import { EntrySelector } from "@/components/schedule/EntrySelector";
 import { ScheduleForGroup } from "@/components/schedule/ScheduleForGroup";
 import { WeekView } from "@/components/schedule/WeekView";
+import { ScheduleWatcher } from "@/components/schedule/schedule-watcher";
 import {
   useDaySchedule,
   useLocalStorage,
@@ -171,6 +173,9 @@ export default function Home() {
           </CardContent>
         </Card>
 
+        {/* Schedule watcher: notifications when the schedule appears/changes */}
+        <ScheduleWatcher corpus={corpus} mode={mode} value={value} />
+
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsList className="grid grid-cols-3 sm:grid-cols-6 w-full h-auto">
             <TabsTrigger value="yesterday" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
@@ -237,7 +242,7 @@ export default function Home() {
                   mode="single"
                   selected={customDate}
                   onSelect={(d) => setCustomDate(d)}
-                  locale={ruLocale()}
+                  locale={ru}
                   className="scale-100"
                 />
               </div>
@@ -365,39 +370,4 @@ function CorpusButton({
       </div>
     </button>
   );
-}
-
-/**
- * Build a minimal Russian locale for react-day-picker (avoids bundling the
- * full date-fns locale pack). We only need month and weekday names.
- */
-function ruLocale() {
-  const months = [
-    "Январь",
-    "Февраль",
-    "Март",
-    "Апрель",
-    "Май",
-    "Июнь",
-    "Июль",
-    "Август",
-    "Сентябрь",
-    "Октябрь",
-    "Ноябрь",
-    "Декабрь",
-  ];
-  return {
-    localize: {
-      month: (n: number) => months[n] ?? "",
-      day: (n: number) =>
-        ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"][n] ?? "",
-      ordinal: (n: number) => `${n}`,
-    },
-    formatLong: {
-      date: () => "dd.MM.yyyy",
-    },
-    options: {
-      weekStartsOn: 1 as const,
-    },
-  };
 }
