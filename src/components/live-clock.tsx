@@ -33,7 +33,7 @@ export function LiveClock({ className }: { className?: string }) {
     <div className={`inline-flex items-center gap-1.5 font-mono text-xs ${className ?? ""}`}>
       <Clock className="w-3.5 h-3.5" />
       <span>{timeStr}</span>
-      <span className="text-white/60 ml-1">GMT+4</span>
+      <span className="text-white/60 ml-1 hidden sm:inline">GMT+4</span>
     </div>
   );
 }

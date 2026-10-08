@@ -375,7 +375,7 @@ export function ScheduleWatcher({
                   type="button"
                   onClick={() => setIntervalMin(m)}
                   className={
-                    "px-2.5 py-1 rounded-md text-xs font-medium border transition-colors " +
+                    "min-h-[44px] px-3 py-2 rounded-md text-xs font-medium border transition-colors " +
                     (intervalMin === m
                       ? "bg-primary text-primary-foreground border-primary"
                       : "border-border text-muted-foreground hover:text-foreground")
@@ -395,13 +395,13 @@ export function ScheduleWatcher({
                 <span className="text-muted-foreground/70 whitespace-nowrap">· проверено в {lastCheckStr}</span>
               )}
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => poll(true)} disabled={checking}>
-                <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" className="h-11 px-4" onClick={() => poll(true)} disabled={checking}>
+                <RefreshCw className="w-4 h-4 mr-1.5" />
                 Проверить сейчас
               </Button>
-              <Button variant="outline" size="sm" onClick={testNotification}>
-                <TestTube2 className="w-3.5 h-3.5 mr-1.5" />
+              <Button variant="outline" size="sm" className="h-11 px-4" onClick={testNotification}>
+                <TestTube2 className="w-4 h-4 mr-1.5" />
                 Тест
               </Button>
             </div>

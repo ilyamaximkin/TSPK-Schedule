@@ -95,7 +95,7 @@ export function EntrySelector({ mode, schedule, date, corpus = 1, value, onChang
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between font-medium"
+            className="w-full justify-between font-medium h-11 text-base"
           >
             <span className={cn("truncate", !value && "text-muted-foreground")}>
               {value || PLACEHOLDER[mode]}
@@ -115,6 +115,7 @@ export function EntrySelector({ mode, schedule, date, corpus = 1, value, onChang
               {showFreeText && (
                 <CommandGroup heading="Добавить свой">
                   <CommandItem
+                    className="min-h-[44px]"
                     onSelect={() => {
                       onChange(query.trim());
                       setOpen(false);
@@ -131,6 +132,7 @@ export function EntrySelector({ mode, schedule, date, corpus = 1, value, onChang
                   <CommandItem
                     key={g}
                     value={g}
+                    className="min-h-[44px]"
                     onSelect={() => {
                       onChange(g);
                       setOpen(false);

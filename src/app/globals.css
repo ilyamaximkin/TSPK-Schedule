@@ -126,4 +126,13 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Mobile comfort: scale the whole UI up on phones (~12%). All Tailwind
+     sizes (text-*, spacing, buttons) are rem-based, so a root font-size
+     bump enlarges text AND touch targets proportionally — including the
+     small text-xs labels that were hard to read on a phone. */
+  @media (max-width: 640px) {
+    html {
+      font-size: 18px;
+    }
+  }
 }

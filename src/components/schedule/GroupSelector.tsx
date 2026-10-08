@@ -72,7 +72,7 @@ export function GroupSelector({ schedule, date, corpus = 1, value, onChange }: P
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between font-medium"
+            className="w-full justify-between font-medium h-11 text-base"
           >
             <span className={cn("truncate", !value && "text-muted-foreground")}>
               {value || "Выберите группу..."}
@@ -92,6 +92,7 @@ export function GroupSelector({ schedule, date, corpus = 1, value, onChange }: P
               {showFreeText && (
                 <CommandGroup heading="Добавить свою">
                   <CommandItem
+                    className="min-h-[44px]"
                     onSelect={() => {
                       onChange(query.trim());
                       setOpen(false);
@@ -108,6 +109,7 @@ export function GroupSelector({ schedule, date, corpus = 1, value, onChange }: P
                   <CommandItem
                     key={g}
                     value={g}
+                    className="min-h-[44px]"
                     onSelect={() => {
                       onChange(g);
                       setOpen(false);

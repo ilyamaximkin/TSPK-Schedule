@@ -27,7 +27,7 @@ export function ThemeToggle() {
       size="icon"
       aria-label={isDark ? "Включить светлую тему" : "Включить тёмную тему"}
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className="h-9 w-9 rounded-lg"
+      className="h-10 w-10 rounded-lg"
     >
       {mounted ? (
         isDark ? (
