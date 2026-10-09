@@ -85,7 +85,7 @@ export function EntrySelector({ mode, schedule, date, corpus = 1, value, onChang
 
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1">
+      <label className="text-sm sm:text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1">
         {LABEL[mode]} {mode === "group" && corpus === 2 ? "(2 корпус)" : mode === "group" ? "(1 корпус)" : ""}
       </label>
       <Popover open={open} onOpenChange={setOpen}>
@@ -115,7 +115,7 @@ export function EntrySelector({ mode, schedule, date, corpus = 1, value, onChang
               {showFreeText && (
                 <CommandGroup heading="Добавить свой">
                   <CommandItem
-                    className="min-h-[44px]"
+                    className="min-h-[44px] text-base"
                     onSelect={() => {
                       onChange(query.trim());
                       setOpen(false);
@@ -132,7 +132,7 @@ export function EntrySelector({ mode, schedule, date, corpus = 1, value, onChang
                   <CommandItem
                     key={g}
                     value={g}
-                    className="min-h-[44px]"
+                    className="min-h-[44px] text-base"
                     onSelect={() => {
                       onChange(g);
                       setOpen(false);

@@ -75,16 +75,16 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50/60 via-background to-background dark:from-sky-950/20 dark:via-background dark:to-background">
       <header className="border-b border-sky-200/60 dark:border-sky-900/40 bg-gradient-to-r from-[#2e8db2] to-[#83bed4] dark:from-[#1d5a78] dark:to-[#2e6080] text-white backdrop-blur sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 flex-1 min-w-0">
-            <div className="w-9 h-9 rounded-lg bg-white/15 ring-1 ring-white/30 flex items-center justify-center shrink-0">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-1 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white/15 ring-1 ring-white/30 flex items-center justify-center shrink-0">
               <GraduationCap className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <h1 className="font-semibold text-base sm:text-lg leading-tight truncate">
                 Расписание ТСПК
               </h1>
-              <p className="text-xs text-white/80 truncate">
+              <p className="text-sm sm:text-xs text-white/80 truncate">
                 <span className="hidden sm:inline">Бот для колледжа · </span>{formatDateRu(today)}
               </p>
             </div>
@@ -109,7 +109,7 @@ export default function Home() {
         {/* Corpus selector */}
         <Card>
           <CardContent className="p-4 sm:p-5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1 mb-2 block">
+            <label className="text-sm sm:text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1 mb-2 block">
               Корпус
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -159,7 +159,7 @@ export default function Home() {
               onChange={setValue}
             />
             {value && (
-              <p className="text-xs text-muted-foreground mt-2 pl-1">
+              <p className="text-sm sm:text-xs text-muted-foreground mt-2 pl-1">
                 {mode === "group" ? "Группа" : mode === "teacher" ? "Преподаватель" : "Кабинет"} «<span className="font-medium text-foreground">{value}</span>» сохранён в этом браузере.
                 {" "}
                 <button
@@ -178,27 +178,27 @@ export default function Home() {
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsList className="grid grid-cols-3 sm:grid-cols-6 w-full h-auto">
-            <TabsTrigger value="yesterday" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="yesterday" className="flex-row gap-1.5 text-base sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <History className="w-4 h-4 shrink-0" />
               <span>Вчера</span>
             </TabsTrigger>
-            <TabsTrigger value="today" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="today" className="flex-row gap-1.5 text-base sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <CalendarClock className="w-4 h-4 shrink-0" />
               <span>Сегодня</span>
             </TabsTrigger>
-            <TabsTrigger value="tomorrow" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="tomorrow" className="flex-row gap-1.5 text-base sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <CalendarDays className="w-4 h-4 shrink-0" />
               <span>Завтра</span>
             </TabsTrigger>
-            <TabsTrigger value="date" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="date" className="flex-row gap-1.5 text-base sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <CalendarRange className="w-4 h-4 shrink-0" />
               <span>Дата</span>
             </TabsTrigger>
-            <TabsTrigger value="week" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="week" className="flex-row gap-1.5 text-base sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <CalendarRange className="w-4 h-4 shrink-0" />
               <span>Неделя</span>
             </TabsTrigger>
-            <TabsTrigger value="back-week" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="back-week" className="flex-row gap-1.5 text-base sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <CalendarMinus className="w-4 h-4 shrink-0" />
               <span className="hidden sm:inline">Назад Неделя</span>
               <span className="sm:hidden">Назад</span>
@@ -269,16 +269,16 @@ export default function Home() {
           </TabsContent>
 
           <TabsContent value="week" className="mt-4 sm:mt-5">
-            <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1.5">
-              <Info className="w-3.5 h-3.5" />
+            <p className="text-base sm:text-sm text-muted-foreground mb-3 flex items-center gap-1.5">
+              <Info className="w-4 h-4 shrink-0" />
               Текущая неделя (понедельник — воскресенье).
             </p>
             <WeekView startDate={weekStart} mode={mode} value={value} corpus={corpus} />
           </TabsContent>
 
           <TabsContent value="back-week" className="mt-4 sm:mt-5">
-            <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1.5">
-              <CalendarMinus className="w-3.5 h-3.5" />
+            <p className="text-base sm:text-sm text-muted-foreground mb-3 flex items-center gap-1.5">
+              <CalendarMinus className="w-4 h-4 shrink-0" />
               Прошлая неделя (как «Назад Коток» в ShellShock Live — с прошлого понедельника по прошлое воскресенье).
             </p>
             <WeekView startDate={backWeekStart} mode={mode} value={value} corpus={corpus} />
@@ -287,7 +287,7 @@ export default function Home() {
       </main>
 
       <footer className="mt-auto border-t bg-background/60">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 text-center text-xs text-muted-foreground">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 text-center text-sm sm:text-xs text-muted-foreground">
           Данные берутся с{" "}
           <a
             href={TSPK_URL}
@@ -328,7 +328,7 @@ function ModeButton({
       type="button"
       onClick={onClick}
       className={
-        "flex items-center justify-center min-h-[44px] px-2 rounded-md text-xs sm:text-sm font-medium transition-colors " +
+        "flex items-center justify-center min-h-[44px] px-2 rounded-md text-sm sm:text-sm font-medium transition-colors " +
         (active
           ? "bg-background text-foreground shadow-sm"
           : "text-muted-foreground hover:text-foreground")
@@ -365,8 +365,8 @@ function CorpusButton({
     >
       <Building2 className={"w-5 h-5 shrink-0 " + (active ? "text-primary" : "text-muted-foreground")} />
       <div className="min-w-0">
-        <div className={"font-semibold text-sm " + (active ? "text-primary" : "")}>{title}</div>
-        <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
+        <div className={"font-semibold text-lg sm:text-sm " + (active ? "text-primary" : "")}>{title}</div>
+        <div className="text-sm sm:text-xs text-muted-foreground truncate">{subtitle}</div>
       </div>
     </button>
   );

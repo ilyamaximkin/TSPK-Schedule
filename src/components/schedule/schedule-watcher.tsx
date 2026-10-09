@@ -327,8 +327,8 @@ export function ScheduleWatcher({
               <BellOff className="w-5 h-5 shrink-0 text-muted-foreground" />
             )}
             <div className="min-w-0">
-              <h2 className="font-semibold text-sm sm:text-base leading-tight">Уведомления о расписании</h2>
-              <p className="text-xs text-muted-foreground truncate">
+              <h2 className="font-semibold text-lg sm:text-base leading-tight">Уведомления о расписании</h2>
+              <p className="text-sm sm:text-xs text-muted-foreground truncate">
                 {watching
                   ? `Следим за ${what} «${value}» — сегодня и завтра`
                   : value
@@ -347,13 +347,13 @@ export function ScheduleWatcher({
         {permission !== "granted" ? (
           <div className="space-y-2">
             {permission === "denied" ? (
-              <p className="text-sm text-amber-600 dark:text-amber-400">
-                Уведомления заблокированы в браузере. Разрешите их для этого сайта (иконка замка в адресной
-                строке → «Уведомления» → «Разрешить») и перезагрузите страницу.
-              </p>
+                <p className="text-base sm:text-sm text-amber-600 dark:text-amber-400">
+                  Уведомления заблокированы в браузере. Разрешите их для этого сайта (иконка замка в адресной
+                  строке → «Уведомления» → «Разрешить») и перезагрузите страницу.
+                </p>
             ) : (
               <>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-base sm:text-sm text-muted-foreground">
                   Бот сам проверит расписание (ТСПК обычно выкладывает его к 22:00 предыдущего дня) и
                   пришлёт уведомление, как только оно появится или изменится. Вкладку держать открытой не
                   нужно — достаточно, чтобы браузер был запущен.
@@ -368,14 +368,14 @@ export function ScheduleWatcher({
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-muted-foreground">Проверять каждые</span>
+              <span className="text-sm sm:text-xs text-muted-foreground">Проверять каждые</span>
               {[1, 2, 5, 10].map((m) => (
                 <button
                   key={m}
                   type="button"
                   onClick={() => setIntervalMin(m)}
                   className={
-                    "min-h-[44px] px-3 py-2 rounded-md text-xs font-medium border transition-colors " +
+                    "min-h-[44px] px-3 py-2 rounded-md text-sm sm:text-xs font-medium border transition-colors " +
                     (intervalMin === m
                       ? "bg-primary text-primary-foreground border-primary"
                       : "border-border text-muted-foreground hover:text-foreground")
@@ -385,7 +385,7 @@ export function ScheduleWatcher({
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-sm sm:text-xs">
               {status.tone === "warn" ? (
                 <span className="text-amber-600 dark:text-amber-400">{status.message}</span>
               ) : (

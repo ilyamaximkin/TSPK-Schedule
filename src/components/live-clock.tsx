@@ -26,13 +26,18 @@ export function LiveClock({ className }: { className?: string }) {
     timeZone: TSPK_TZ,
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
   });
+  // Seconds only where there's room for them (≥ sm) — on phones every
+  // pixel of the header goes to the app title.
+  const secStr = ":" + String(now.getSeconds()).padStart(2, "0");
 
   return (
     <div className={`inline-flex items-center gap-1.5 font-mono text-xs ${className ?? ""}`}>
       <Clock className="w-3.5 h-3.5" />
-      <span>{timeStr}</span>
+      <span>
+        {timeStr}
+        <span className="hidden sm:inline">{secStr}</span>
+      </span>
       <span className="text-white/60 ml-1 hidden sm:inline">GMT+4</span>
     </div>
   );

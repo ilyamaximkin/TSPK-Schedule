@@ -23,9 +23,9 @@ export function LessonCard({ lessons, showGroup = false }: { lessons: Lesson[]; 
   return (
     <Card className="overflow-hidden border-l-4 border-l-primary/80 hover:shadow-md transition-shadow">
       <CardContent className="p-4 sm:p-5 flex gap-2.5 sm:gap-4 items-start">
-        <div className="flex flex-col items-center justify-center shrink-0 w-10 h-10 sm:w-14 sm:h-14 rounded-lg bg-primary/10 text-primary">
+        <div className="flex flex-col items-center justify-center shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-primary/10 text-primary">
           <span className="hidden sm:inline text-xs font-medium uppercase tracking-wide opacity-70">Пара</span>
-          <span className="text-lg sm:text-2xl font-bold leading-none">{num}</span>
+          <span className="text-2xl sm:text-2xl font-bold leading-none">{num}</span>
         </div>
         <div className="flex-1 min-w-0 space-y-2 sm:space-y-3">
           {lessons.map((lesson, i) => {
@@ -64,36 +64,36 @@ function SubLesson({
     <div className={cn("min-w-0", multiple && "border-b border-border/60 last:border-b-0 pb-2 sm:pb-3 last:pb-0")}>
       {showGroup && group && (
         <div className="mb-1">
-          <Badge variant="secondary" className="font-mono text-xs">
-            <Users className="w-3 h-3 mr-1" />
+          <Badge variant="secondary" className="font-mono text-sm sm:text-xs">
+            <Users className="w-3.5 h-3.5 mr-1" />
             {group}
           </Badge>
         </div>
       )}
-      <h3 className="font-semibold text-base sm:text-lg leading-tight break-words">
+      <h3 className="font-semibold text-xl sm:text-lg leading-tight break-words">
         {lesson.subject}
       </h3>
-      <div className="mt-1 sm:mt-1.5 flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1 text-sm text-muted-foreground">
+      <div className="mt-1 sm:mt-1.5 flex flex-wrap items-center gap-x-3 sm:gap-x-4 gap-y-1 text-lg sm:text-sm text-muted-foreground">
         {multiple && lesson.time ? (
           <span className="inline-flex items-center gap-1 sm:gap-1.5">
-            <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            <Clock className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
             <span className="font-mono">{lesson.time}</span>
           </span>
         ) : overallTimeBadge ? (
           <span className="inline-flex items-center gap-1 sm:gap-1.5">
-            <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            <Clock className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
             <span className="font-mono">{overallTimeBadge}</span>
           </span>
         ) : null}
         {lesson.teacher && (
           <span className="inline-flex items-center gap-1 sm:gap-1.5">
-            <User className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            <User className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
             {lesson.teacher}
           </span>
         )}
         {lesson.room && (
           <span className="inline-flex items-center gap-1 sm:gap-1.5">
-            <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            <MapPin className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
             {lesson.room}
           </span>
         )}
@@ -142,8 +142,8 @@ export function EmptyState({
   return (
     <Card className={toneClass}>
       <CardContent className="p-6 text-center">
-        <p className="font-medium">{title}</p>
-        {description && <p className="text-sm mt-1 opacity-80">{description}</p>}
+        <p className="font-medium text-lg sm:text-base">{title}</p>
+        {description && <p className="text-base sm:text-sm mt-1 opacity-80">{description}</p>}
       </CardContent>
     </Card>
   );

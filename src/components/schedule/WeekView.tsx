@@ -80,8 +80,8 @@ function DayCard({
     <Card className={isWeekend ? "opacity-70" : ""}>
       <CardHeader className="pb-2 pt-3 px-4 sm:px-5">
         <div className="flex items-baseline justify-between gap-2">
-          <h3 className="font-semibold text-sm">{dow}</h3>
-          <span className="text-xs text-muted-foreground">{formatDateRu(date)}</span>
+          <h3 className="font-semibold text-lg sm:text-sm">{dow}</h3>
+          <span className="text-sm sm:text-xs text-muted-foreground">{formatDateRu(date)}</span>
         </div>
       </CardHeader>
       <CardContent className="px-4 sm:px-5 pb-4 pt-0 space-y-1.5">
@@ -91,20 +91,20 @@ function DayCard({
             <div className="h-3 bg-muted rounded w-1/2" />
           </div>
         ) : error ? (
-          <p className="text-xs text-destructive">{error}</p>
+          <p className="text-sm sm:text-xs text-destructive">{error}</p>
         ) : !value ? (
-          <p className="text-xs text-muted-foreground">Выберите {mode === "group" ? "группу" : mode === "teacher" ? "преподавателя" : "кабинет"} выше.</p>
+          <p className="text-sm sm:text-xs text-muted-foreground">Выберите {mode === "group" ? "группу" : mode === "teacher" ? "преподавателя" : "кабинет"} выше.</p>
         ) : !schedule || schedule.noLessons || (schedule.groups.length === 0 && !schedule.header) ? (
           (() => {
             const isFinal = schedule ? noLessonsIsFinal(schedule.date) : noLessonsIsFinal(date);
             return isFinal ? (
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <CalendarX2 className="h-3.5 w-3.5" />
+              <p className="text-sm sm:text-xs text-muted-foreground flex items-center gap-1.5">
+                <CalendarX2 className="h-4 w-4" />
                 Занятий нет
               </p>
             ) : (
-              <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                <CalendarX2 className="h-3.5 w-3.5" />
+              <p className="text-sm sm:text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                <CalendarX2 className="h-4 w-4" />
                 Расписания пока нет
               </p>
             );
@@ -118,34 +118,34 @@ function DayCard({
                   ? Object.values(schedule.scheduleByGroup).flat().some(l => l.teacher === value)
                   : Object.values(schedule.scheduleByGroup).flat().some(l => l.room === value);
             return inList
-              ? <p className="text-xs text-muted-foreground">Пар для вашего выбора нет.</p>
-              : <p className="text-xs text-muted-foreground">«{value}» не найден в этот день.</p>;
+              ? <p className="text-sm sm:text-xs text-muted-foreground">Пар для вашего выбора нет.</p>
+              : <p className="text-sm sm:text-xs text-muted-foreground">«{value}» не найден в этот день.</p>;
           })()
         ) : (
-          <ul className="space-y-1.5">
+          <ul className="space-y-2">
             {lessons.map((l, i) => {
               const lg = l as LessonWithGroup;
               return (
-                <li key={i} className="text-sm flex gap-2 items-start">
-                  <Badge variant="secondary" className="font-mono text-xs shrink-0 mt-0.5">
+                <li key={i} className="text-lg sm:text-sm flex gap-2 items-start">
+                  <Badge variant="secondary" className="font-mono text-base shrink-0 mt-0.5">
                     #{l.number}
                   </Badge>
                   <div className="flex-1 min-w-0">
                     {mode !== "group" && lg.group && (
-                      <div className="text-xs text-muted-foreground/80 font-mono mb-0.5">
+                      <div className="text-sm sm:text-xs text-muted-foreground/80 font-mono mb-0.5">
                         {lg.group}
                       </div>
                     )}
                     <div className="flex items-baseline gap-2 flex-wrap">
                       {l.time && (
-                        <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                        <span className="text-base sm:text-xs text-muted-foreground font-mono whitespace-nowrap">
                           {l.time}
                         </span>
                       )}
                       <span className="font-medium break-words leading-snug">{l.subject}</span>
                     </div>
                     {(l.teacher || l.room) && (
-                      <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2">
+                      <div className="text-base sm:text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2">
                         {l.teacher && <span>{l.teacher}</span>}
                         {l.room && <span>{l.room}</span>}
                       </div>

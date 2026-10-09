@@ -62,7 +62,7 @@ export function GroupSelector({ schedule, date, corpus = 1, value, onChange }: P
 
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1">
+      <label className="text-sm sm:text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1">
         Моя группа {corpus === 2 ? "(2 корпус)" : "(1 корпус)"}
       </label>
       <Popover open={open} onOpenChange={setOpen}>
@@ -92,7 +92,7 @@ export function GroupSelector({ schedule, date, corpus = 1, value, onChange }: P
               {showFreeText && (
                 <CommandGroup heading="Добавить свою">
                   <CommandItem
-                    className="min-h-[44px]"
+                    className="min-h-[44px] text-base"
                     onSelect={() => {
                       onChange(query.trim());
                       setOpen(false);
@@ -109,7 +109,7 @@ export function GroupSelector({ schedule, date, corpus = 1, value, onChange }: P
                   <CommandItem
                     key={g}
                     value={g}
-                    className="min-h-[44px]"
+                    className="min-h-[44px] text-base"
                     onSelect={() => {
                       onChange(g);
                       setOpen(false);
