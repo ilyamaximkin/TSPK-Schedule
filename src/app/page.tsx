@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { CalendarDays, CalendarRange, CalendarClock, History, CalendarMinus, GraduationCap, ExternalLink, Info, Building2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CalendarDays, CalendarRange, CalendarClock, History, CalendarMinus, GraduationCap, ExternalLink, Info, Building2, Laptop, Award } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { ru } from "react-day-picker/locale";
@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LiveClock } from "@/components/live-clock";
+import { AccessibilityZoom } from "@/components/accessibility-zoom";
 import { EntrySelector } from "@/components/schedule/EntrySelector";
 import { ScheduleForGroup } from "@/components/schedule/ScheduleForGroup";
 import { WeekView } from "@/components/schedule/WeekView";
@@ -21,6 +22,7 @@ import {
   offsetIso,
   weekStartIso,
   formatDateRu,
+  type Dept,
   type ViewMode,
 } from "@/components/schedule/use-tspk";
 
@@ -28,28 +30,42 @@ const TSPK_URL = "https://tspk.org/studentam/novoe-raspisanie-demo.html";
 
 export default function Home() {
   const [tab, setTab] = useLocalStorage<string>("tspk:tab", "today");
-  const [corpus, setCorpus] = useLocalStorage<1 | 2>("tspk:corpus", 1);
+  // Отделение: очный 1/2 корпус, заочное, ДПО. One-time migration from the
+  // legacy "tspk:corpus" (1|2) key for users who picked a corpus before.
+  const [dept, setDept] = useLocalStorage<Dept>("tspk:dept", "1");
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("tspk:dept") === null) {
+        const legacy = JSON.parse(localStorage.getItem("tspk:corpus") || "1");
+        if (legacy === 2) setDept("2");
+      }
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // View mode: filter the schedule by group / teacher / room.
   const [mode, setMode] = useLocalStorage<ViewMode>("tspk:mode", "group");
-  // Per-corpus group: each corpus remembers its own group independently,
-  // so switching corpus auto-restores the previously chosen group for it.
+  // Per-dept group: each отделение remembers its own group independently,
+  // so switching dept auto-restores the previously chosen group for it.
   const [group1, setGroup1] = useLocalStorage<string>("tspk:group:1", "");
   const [group2, setGroup2] = useLocalStorage<string>("tspk:group:2", "");
-  // Per-mode teacher/room selection (shared across corpora — teachers and
-  // rooms aren't corpus-scoped).
+  const [groupZaoch, setGroupZaoch] = useLocalStorage<string>("tspk:group:zaoch", "");
+  const [groupDpo, setGroupDpo] = useLocalStorage<string>("tspk:group:dpo", "");
+  // Per-mode teacher/room selection (shared across departments).
   const [teacher, setTeacher] = useLocalStorage<string>("tspk:teacher", "");
   const [room, setRoom] = useLocalStorage<string>("tspk:room", "");
 
   // The "value" we filter by depends on the active mode.
   const value =
     mode === "group"
-      ? (corpus === 2 ? group2 : group1)
+      ? (dept === "1" ? group1 : dept === "2" ? group2 : dept === "zaoch" ? groupZaoch : groupDpo)
       : mode === "teacher"
         ? teacher
         : room;
   const setValue =
     mode === "group"
-      ? (corpus === 2 ? setGroup2 : setGroup1)
+      ? (dept === "1" ? setGroup1 : dept === "2" ? setGroup2 : dept === "zaoch" ? setGroupZaoch : setGroupDpo)
       : mode === "teacher"
         ? setTeacher
         : setRoom;
@@ -65,12 +81,12 @@ export default function Home() {
   const weekStart = weekStartIso(0);
   const backWeekStart = weekStartIso(-1);
 
-  const yesterdaySched = useDaySchedule(yesterday, corpus);
-  const todaySched = useDaySchedule(today, corpus);
-  const tomorrowSched = useDaySchedule(tomorrow, corpus);
+  const yesterdaySched = useDaySchedule(yesterday, dept);
+  const todaySched = useDaySchedule(today, dept);
+  const tomorrowSched = useDaySchedule(tomorrow, dept);
   // For the "by date" tab we use the selected Date object → ISO.
   const customIso = customDate ? isoFromJsDate(customDate) : today;
-  const customSched = useDaySchedule(customIso, corpus);
+  const customSched = useDaySchedule(customIso, dept);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50/60 via-background to-background dark:from-sky-950/20 dark:via-background dark:to-background">
@@ -84,7 +100,7 @@ export default function Home() {
               <h1 className="font-semibold text-base sm:text-lg leading-tight truncate">
                 Расписание ТСПК
               </h1>
-              <p className="text-sm sm:text-xs text-white/80 truncate">
+              <p className="text-xs text-white/80 truncate">
                 <span className="hidden sm:inline">Бот для колледжа · </span>{formatDateRu(today)}
               </p>
             </div>
@@ -106,24 +122,44 @@ export default function Home() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-5 sm:py-8 space-y-5 pb-16">
-        {/* Corpus selector */}
+        {/* Accessibility zoom ("для плохо видящих") — first so it is always
+            reachable, and it scales itself along with everything else. */}
+        <AccessibilityZoom />
+
+        {/* Отделение selector */}
         <Card>
           <CardContent className="p-4 sm:p-5">
-            <label className="text-sm sm:text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1 mb-2 block">
-              Корпус
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1 mb-2 block">
+              Отделение
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <CorpusButton
-                active={corpus === 1}
-                onClick={() => setCorpus(1)}
+              <DeptButton
+                active={dept === "1"}
+                onClick={() => setDept("1")}
                 title="1 корпус"
                 subtitle="Мурысева, 84"
+                icon={<Building2 className={"w-5 h-5 shrink-0 " + (dept === "1" ? "text-primary" : "text-muted-foreground")} />}
               />
-              <CorpusButton
-                active={corpus === 2}
-                onClick={() => setCorpus(2)}
+              <DeptButton
+                active={dept === "2"}
+                onClick={() => setDept("2")}
                 title="2 корпус"
                 subtitle="Ленинградская, 28"
+                icon={<Building2 className={"w-5 h-5 shrink-0 " + (dept === "2" ? "text-primary" : "text-muted-foreground")} />}
+              />
+              <DeptButton
+                active={dept === "zaoch"}
+                onClick={() => setDept("zaoch")}
+                title="Заочное отделение"
+                subtitle="вечерние группы"
+                icon={<Laptop className={"w-5 h-5 shrink-0 " + (dept === "zaoch" ? "text-primary" : "text-muted-foreground")} />}
+              />
+              <DeptButton
+                active={dept === "dpo"}
+                onClick={() => setDept("dpo")}
+                title="ДПО"
+                subtitle="доп. образование"
+                icon={<Award className={"w-5 h-5 shrink-0 " + (dept === "dpo" ? "text-primary" : "text-muted-foreground")} />}
               />
             </div>
           </CardContent>
@@ -154,12 +190,12 @@ export default function Home() {
               mode={mode}
               schedule={todaySched.data}
               date={today}
-              corpus={corpus}
+              dept={dept}
               value={value}
               onChange={setValue}
             />
             {value && (
-              <p className="text-sm sm:text-xs text-muted-foreground mt-2 pl-1">
+              <p className="text-xs text-muted-foreground mt-2 pl-1">
                 {mode === "group" ? "Группа" : mode === "teacher" ? "Преподаватель" : "Кабинет"} «<span className="font-medium text-foreground">{value}</span>» сохранён в этом браузере.
                 {" "}
                 <button
@@ -174,31 +210,31 @@ export default function Home() {
         </Card>
 
         {/* Schedule watcher: notifications when the schedule appears/changes */}
-        <ScheduleWatcher corpus={corpus} mode={mode} value={value} />
+        <ScheduleWatcher dept={dept} mode={mode} value={value} />
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsList className="grid grid-cols-3 sm:grid-cols-6 w-full h-auto">
-            <TabsTrigger value="yesterday" className="flex-row gap-1.5 text-base sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="yesterday" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <History className="w-4 h-4 shrink-0" />
               <span>Вчера</span>
             </TabsTrigger>
-            <TabsTrigger value="today" className="flex-row gap-1.5 text-base sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="today" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <CalendarClock className="w-4 h-4 shrink-0" />
               <span>Сегодня</span>
             </TabsTrigger>
-            <TabsTrigger value="tomorrow" className="flex-row gap-1.5 text-base sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="tomorrow" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <CalendarDays className="w-4 h-4 shrink-0" />
               <span>Завтра</span>
             </TabsTrigger>
-            <TabsTrigger value="date" className="flex-row gap-1.5 text-base sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="date" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <CalendarRange className="w-4 h-4 shrink-0" />
               <span>Дата</span>
             </TabsTrigger>
-            <TabsTrigger value="week" className="flex-row gap-1.5 text-base sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="week" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <CalendarRange className="w-4 h-4 shrink-0" />
               <span>Неделя</span>
             </TabsTrigger>
-            <TabsTrigger value="back-week" className="flex-row gap-1.5 text-base sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="back-week" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
               <CalendarMinus className="w-4 h-4 shrink-0" />
               <span className="hidden sm:inline">Назад Неделя</span>
               <span className="sm:hidden">Назад</span>
@@ -269,25 +305,25 @@ export default function Home() {
           </TabsContent>
 
           <TabsContent value="week" className="mt-4 sm:mt-5">
-            <p className="text-base sm:text-sm text-muted-foreground mb-3 flex items-center gap-1.5">
-              <Info className="w-4 h-4 shrink-0" />
+            <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1.5">
+              <Info className="w-3.5 h-3.5 shrink-0" />
               Текущая неделя (понедельник — воскресенье).
             </p>
-            <WeekView startDate={weekStart} mode={mode} value={value} corpus={corpus} />
+            <WeekView startDate={weekStart} mode={mode} value={value} dept={dept} />
           </TabsContent>
 
           <TabsContent value="back-week" className="mt-4 sm:mt-5">
-            <p className="text-base sm:text-sm text-muted-foreground mb-3 flex items-center gap-1.5">
-              <CalendarMinus className="w-4 h-4 shrink-0" />
+            <p className="text-sm text-muted-foreground mb-3 flex items-center gap-1.5">
+              <CalendarMinus className="w-3.5 h-3.5 shrink-0" />
               Прошлая неделя (как «Назад Коток» в ShellShock Live — с прошлого понедельника по прошлое воскресенье).
             </p>
-            <WeekView startDate={backWeekStart} mode={mode} value={value} corpus={corpus} />
+            <WeekView startDate={backWeekStart} mode={mode} value={value} dept={dept} />
           </TabsContent>
         </Tabs>
       </main>
 
       <footer className="mt-auto border-t bg-background/60">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 text-center text-sm sm:text-xs text-muted-foreground">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 text-center text-xs text-muted-foreground">
           Данные берутся с{" "}
           <a
             href={TSPK_URL}
@@ -312,8 +348,7 @@ function isoFromJsDate(d: Date): string {
   return `${y}-${mo}-${da}`;
 }
 
-/** Corpus toggle button — used to switch between corpus 1 (Мурысева 84)
- * and corpus 2 (Ленинградская 28). */
+/** Mode toggle chip — Группа / Преподаватель / Кабинет. */
 function ModeButton({
   active,
   onClick,
@@ -328,7 +363,7 @@ function ModeButton({
       type="button"
       onClick={onClick}
       className={
-        "flex items-center justify-center min-h-[44px] px-2 rounded-md text-sm sm:text-sm font-medium transition-colors " +
+        "flex items-center justify-center min-h-[44px] px-2 rounded-md text-xs sm:text-sm font-medium transition-colors " +
         (active
           ? "bg-background text-foreground shadow-sm"
           : "text-muted-foreground hover:text-foreground")
@@ -340,16 +375,20 @@ function ModeButton({
   );
 }
 
-function CorpusButton({
+/** Отделение toggle button — 1 корпус (Мурысева 84), 2 корпус
+ * (Ленинградская 28), заочное отделение, ДПО. */
+function DeptButton({
   active,
   onClick,
   title,
   subtitle,
+  icon,
 }: {
   active: boolean;
   onClick: () => void;
   title: string;
   subtitle: string;
+  icon: React.ReactNode;
 }) {
   return (
     <button
@@ -363,10 +402,10 @@ function CorpusButton({
       }
       aria-pressed={active}
     >
-      <Building2 className={"w-5 h-5 shrink-0 " + (active ? "text-primary" : "text-muted-foreground")} />
+      {icon}
       <div className="min-w-0">
-        <div className={"font-semibold text-lg sm:text-sm " + (active ? "text-primary" : "")}>{title}</div>
-        <div className="text-sm sm:text-xs text-muted-foreground truncate">{subtitle}</div>
+        <div className={"font-semibold text-sm " + (active ? "text-primary" : "")}>{title}</div>
+        <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
       </div>
     </button>
   );

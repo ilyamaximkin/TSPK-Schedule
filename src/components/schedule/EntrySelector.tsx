@@ -11,7 +11,9 @@ import {
   extractTeachers,
   extractRooms,
   fallbackGroups,
+  deptLabel,
   type DaySchedule,
+  type Dept,
   type ViewMode,
 } from "./use-tspk";
 
@@ -21,8 +23,8 @@ interface Props {
   schedule?: DaySchedule | null;
   /** If no schedule, fetch by date. */
   date?: string | null;
-  /** Corpus for fallback groups list. */
-  corpus?: 1 | 2;
+  /** Отделение for fallback groups list + labels. */
+  dept?: Dept;
   value: string;
   onChange: (v: string) => void;
 }
@@ -50,28 +52,28 @@ const EMPTY_HINT: Record<ViewMode, string> = {
  * the three modes (group / teacher / room). The suggestion list comes from
  * the day's schedule (or fallback for groups only).
  */
-export function EntrySelector({ mode, schedule, date, corpus = 1, value, onChange }: Props) {
+export function EntrySelector({ mode, schedule, date, dept = "1", value, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const daySchedule = useDaySchedule(schedule ? null : (date ?? null), corpus);
+  const daySchedule = useDaySchedule(schedule ? null : (date ?? null), dept);
 
   const items = useMemo(() => {
     const fromSchedule = schedule ?? daySchedule.data;
     if (!fromSchedule) {
       // Only groups have a static fallback; teachers and rooms always come
       // from the live schedule.
-      return mode === "group" ? fallbackGroups(corpus) : [];
+      return mode === "group" ? fallbackGroups(dept) : [];
     }
     if (mode === "group") {
       const api = fromSchedule.groups ?? [];
-      const merged = Array.from(new Set([...fallbackGroups(corpus), ...api]));
+      const merged = Array.from(new Set([...fallbackGroups(dept), ...api]));
       merged.sort();
       return merged;
     }
     if (mode === "teacher") return extractTeachers(fromSchedule);
     if (mode === "room") return extractRooms(fromSchedule);
     return [];
-  }, [schedule, daySchedule.data, mode, corpus]);
+  }, [schedule, daySchedule.data, mode, dept]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -85,8 +87,8 @@ export function EntrySelector({ mode, schedule, date, corpus = 1, value, onChang
 
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-sm sm:text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1">
-        {LABEL[mode]} {mode === "group" && corpus === 2 ? "(2 корпус)" : mode === "group" ? "(1 корпус)" : ""}
+      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1">
+        {LABEL[mode]} {mode === "group" ? `(${deptLabel(dept)})` : ""}
       </label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -95,7 +97,7 @@ export function EntrySelector({ mode, schedule, date, corpus = 1, value, onChang
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between font-medium h-11 text-base"
+            className="w-full justify-between font-medium h-11"
           >
             <span className={cn("truncate", !value && "text-muted-foreground")}>
               {value || PLACEHOLDER[mode]}
@@ -115,7 +117,7 @@ export function EntrySelector({ mode, schedule, date, corpus = 1, value, onChang
               {showFreeText && (
                 <CommandGroup heading="Добавить свой">
                   <CommandItem
-                    className="min-h-[44px] text-base"
+                    className="min-h-[44px]"
                     onSelect={() => {
                       onChange(query.trim());
                       setOpen(false);
@@ -127,12 +129,12 @@ export function EntrySelector({ mode, schedule, date, corpus = 1, value, onChang
                   </CommandItem>
                 </CommandGroup>
               )}
-              <CommandGroup heading={mode === "group" ? "Все группы корпуса " + corpus : mode === "teacher" ? "Преподаватели" : "Кабинеты"}>
+              <CommandGroup heading={mode === "group" ? "Все группы: " + deptLabel(dept) : mode === "teacher" ? "Преподаватели" : "Кабинеты"}>
                 {filtered.slice(0, 200).map((g) => (
                   <CommandItem
                     key={g}
                     value={g}
-                    className="min-h-[44px] text-base"
+                    className="min-h-[44px]"
                     onSelect={() => {
                       onChange(g);
                       setOpen(false);

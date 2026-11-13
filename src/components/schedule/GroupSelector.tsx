@@ -10,6 +10,7 @@ import {
   useDaySchedule,
   fallbackGroups,
   type DaySchedule,
+  type Dept,
 } from "./use-tspk";
 
 interface Props {
@@ -17,8 +18,8 @@ interface Props {
   schedule?: DaySchedule | null;
   /** Otherwise fetch by date. */
   date?: string | null;
-  /** Corpus: 1 (Мурысева 84) or 2 (Ленинградская 28). */
-  corpus?: 1 | 2;
+  /** Отделение for the fallback list + label. */
+  dept?: Dept;
   value: string;
   onChange: (v: string) => void;
 }
@@ -29,16 +30,16 @@ interface Props {
  * yet (e.g. weekend with no schedule), falls back to a hardcoded list of
  * known TSPK groups so the dropdown is never empty.
  */
-export function GroupSelector({ schedule, date, corpus = 1, value, onChange }: Props) {
+export function GroupSelector({ schedule, date, dept = "1", value, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const daySchedule = useDaySchedule(schedule ? null : (date ?? null), corpus);
+  const daySchedule = useDaySchedule(schedule ? null : (date ?? null), dept);
 
   const groups = useMemo(() => {
-    // Always include the static fallback for the current corpus so the
+    // Always include the static fallback for the current отделение so the
     // dropdown is never empty. Merge in any groups the API returns so
     // newly-added groups still appear.
-    const fallback = fallbackGroups(corpus);
+    const fallback = fallbackGroups(dept);
     const apiGroups =
       (schedule && schedule.groups.length > 0
         ? schedule.groups
@@ -48,7 +49,7 @@ export function GroupSelector({ schedule, date, corpus = 1, value, onChange }: P
     const merged = Array.from(new Set([...fallback, ...apiGroups]));
     merged.sort();
     return merged;
-  }, [schedule, daySchedule.data, corpus]);
+  }, [schedule, daySchedule.data, dept]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -62,8 +63,8 @@ export function GroupSelector({ schedule, date, corpus = 1, value, onChange }: P
 
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-sm sm:text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1">
-        Моя группа {corpus === 2 ? "(2 корпус)" : "(1 корпус)"}
+      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1">
+        Моя группа {dept === "2" ? "(2 корпус)" : dept === "zaoch" ? "(заочное)" : dept === "dpo" ? "(ДПО)" : "(1 корпус)"}
       </label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -72,7 +73,7 @@ export function GroupSelector({ schedule, date, corpus = 1, value, onChange }: P
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between font-medium h-11 text-base"
+            className="w-full justify-between font-medium h-11"
           >
             <span className={cn("truncate", !value && "text-muted-foreground")}>
               {value || "Выберите группу..."}
@@ -92,7 +93,7 @@ export function GroupSelector({ schedule, date, corpus = 1, value, onChange }: P
               {showFreeText && (
                 <CommandGroup heading="Добавить свою">
                   <CommandItem
-                    className="min-h-[44px] text-base"
+                    className="min-h-[44px]"
                     onSelect={() => {
                       onChange(query.trim());
                       setOpen(false);
@@ -104,12 +105,12 @@ export function GroupSelector({ schedule, date, corpus = 1, value, onChange }: P
                   </CommandItem>
                 </CommandGroup>
               )}
-              <CommandGroup heading={"Все группы корпуса " + corpus}>
+              <CommandGroup heading={"Все группы " + (dept === "2" ? "корпуса 2" : dept === "zaoch" ? "заочного отделения" : dept === "dpo" ? "ДПО" : "корпуса 1")}>
                 {filtered.slice(0, 200).map((g) => (
                   <CommandItem
                     key={g}
                     value={g}
-                    className="min-h-[44px] text-base"
+                    className="min-h-[44px]"
                     onSelect={() => {
                       onChange(g);
                       setOpen(false);

@@ -13,7 +13,6 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
-
 export const metadata: Metadata = {
   title: "Расписание ТСПК — бот для Макса",
   description: "Веб-бот для расписания Тольяттинского социально-педагогического колледжа. Сегодня, завтра, неделя, по дате — для вашей группы.",
@@ -47,6 +46,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
+        {/* Apply the saved accessibility zoom before first paint (no size
+            flash). Full logic lives in accessibility-zoom.tsx. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var z=parseFloat(localStorage.getItem('tspk:uiZoom'));if(z&&z>1&&z<=20){document.documentElement.style.setProperty('--ui-zoom',String(z));}}catch(e){}",
+          }}
+        />
         <ThemeProvider>
           {children}
           <Toaster />

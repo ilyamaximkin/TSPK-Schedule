@@ -12,6 +12,9 @@ export interface Lesson {
   raw: string;
 }
 
+/** Отделение: очные корпуса 1/2, заочное отделение, ДПО. */
+export type Dept = "1" | "2" | "zaoch" | "dpo";
+
 export interface DaySchedule {
   date: string;
   corpus: 1 | 2;
@@ -20,6 +23,8 @@ export interface DaySchedule {
   groups: string[];
   scheduleByGroup: Record<string, Lesson[]>;
   noLessons: boolean;
+  /** Set for заочное / ДПО views */
+  dept?: Exclude<Dept, "1" | "2">;
 }
 
 /** View mode: filter by group / teacher / room. */
@@ -134,9 +139,31 @@ export const FALLBACK_GROUPS_2: string[] = [
   "ДОУ-11",
 ];
 
-/** Backwards-compat alias — picks the right list based on corpus. */
-export function fallbackGroups(corpus: 1 | 2): string[] {
-  return corpus === 2 ? FALLBACK_GROUPS_2 : FALLBACK_GROUPS_1;
+/** Заочное отделение — вечерние группы с суффиксом «а» (ноябрь 2026). */
+export const FALLBACK_GROUPS_ZAOCH: string[] = [
+  "ДО-21а", "ДО-25а", "ДО-31а", "ДО-35а", "ДО-41а", "ДО-45а",
+  "НК-25а/НК-31а", "НК-25а", "НК-31а", "НК-35а", "НК-45а",
+  "ПДО-25а", "ПДО-35а", "ПДО-45а",
+  "СР-25а", "СР-35а",
+];
+
+/** ДПО — программы меняются от дня к дню; список приходит из API. */
+export const FALLBACK_GROUPS_DPO: string[] = [];
+
+/** Picks the right fallback list based on отделение. */
+export function fallbackGroups(dept: Dept): string[] {
+  if (dept === "2") return FALLBACK_GROUPS_2;
+  if (dept === "zaoch") return FALLBACK_GROUPS_ZAOCH;
+  if (dept === "dpo") return FALLBACK_GROUPS_DPO;
+  return FALLBACK_GROUPS_1;
+}
+
+/** Human label of an отделение, for selector headings. */
+export function deptLabel(dept: Dept): string {
+  if (dept === "2") return "2 корпус";
+  if (dept === "zaoch") return "заочное отделение";
+  if (dept === "dpo") return "ДПО";
+  return "1 корпус";
 }
 
 /** Persist a value in localStorage (multi-tab safe). */
@@ -275,8 +302,8 @@ export function offsetIso(days: number): string {
   return todayIso(d);
 }
 
-/** Fetch the schedule for a single ISO date + corpus. */
-export function useDaySchedule(date: string | null, corpus: 1 | 2 = 1) {
+/** Fetch the schedule for a single ISO date + отделение. */
+export function useDaySchedule(date: string | null, dept: Dept = "1") {
   const [data, setData] = useState<DaySchedule | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -288,13 +315,13 @@ export function useDaySchedule(date: string | null, corpus: 1 | 2 = 1) {
       return;
     }
     let cancelled = false;
-    // Reset stale data IMMEDIATELY when date/corpus changes — otherwise
+    // Reset stale data IMMEDIATELY when date/dept changes — otherwise
     // the UI flashes "group not found" because the previous schedule
-    // (for the other corpus) doesn't contain the new corpus's groups.
+    // (for the other отделение) doesn't contain the new groups.
     setData(null);
     setError(null);
     setLoading(true);
-    fetch(`/api/schedule/day?date=${encodeURIComponent(date)}&corpus=${corpus}`)
+    fetch(`/api/schedule/day?date=${encodeURIComponent(date)}&dept=${dept}`)
       .then(async (r) => {
         if (!r.ok) {
           const j = await r.json().catch(() => null);
@@ -318,7 +345,7 @@ export function useDaySchedule(date: string | null, corpus: 1 | 2 = 1) {
     return () => {
       cancelled = true;
     };
-  }, [date, corpus]);
+  }, [date, dept]);
 
   // Silent in-place refresh when the schedule watcher detects that this
   // day's schedule appeared or changed (tspk:schedule-updated event).
@@ -328,7 +355,7 @@ export function useDaySchedule(date: string | null, corpus: 1 | 2 = 1) {
       const detail = (e as CustomEvent<{ date?: string }>).detail;
       if (detail?.date && detail.date !== date) return;
       let cancelled = false;
-      fetch(`/api/schedule/day?date=${encodeURIComponent(date)}&corpus=${corpus}`)
+      fetch(`/api/schedule/day?date=${encodeURIComponent(date)}&dept=${dept}`)
         .then(async (r) => (r.ok ? r.json() : null))
         .then((j) => {
           if (!cancelled && j?.ok) setData(j.schedule as DaySchedule);
@@ -342,13 +369,13 @@ export function useDaySchedule(date: string | null, corpus: 1 | 2 = 1) {
     };
     window.addEventListener("tspk:schedule-updated", handler);
     return () => window.removeEventListener("tspk:schedule-updated", handler);
-  }, [date, corpus]);
+  }, [date, dept]);
 
   return { data, error, loading };
 }
 
 /** Fetch several days at once (for the "week" view). */
-export function useWeekSchedule(startDate: string | null, days: number, corpus: 1 | 2 = 1) {
+export function useWeekSchedule(startDate: string | null, days: number, dept: Dept = "1") {
   const [items, setItems] = useState<Array<{ date: string; schedule: DaySchedule | null; error: string | null; loading: boolean }>>([]);
   const [loading, setLoading] = useState(false);
 
@@ -359,9 +386,9 @@ export function useWeekSchedule(startDate: string | null, days: number, corpus: 
       return;
     }
     let cancelled = false;
-    // Reset stale data immediately when corpus/startDate changes — same
+    // Reset stale data immediately when dept/startDate changes — same
     // race condition as in useDaySchedule (otherwise we briefly render
-    // yesterday's corpus with today's selected group).
+    // yesterday's отделение with today's selected group).
     setItems([]);
     setLoading(true);
 
@@ -377,7 +404,7 @@ export function useWeekSchedule(startDate: string | null, days: number, corpus: 
 
     Promise.all(
       dates.map((date) =>
-        fetch(`/api/schedule/day?date=${encodeURIComponent(date)}&corpus=${corpus}`)
+        fetch(`/api/schedule/day?date=${encodeURIComponent(date)}&dept=${dept}`)
           .then(async (r) => {
             if (!r.ok) {
               const j = await r.json().catch(() => null);
@@ -402,7 +429,7 @@ export function useWeekSchedule(startDate: string | null, days: number, corpus: 
     return () => {
       cancelled = true;
     };
-  }, [startDate, days, corpus]);
+  }, [startDate, days, dept]);
 
   // Silent in-place refresh when the watcher detects a schedule change.
   useEffect(() => {
@@ -418,7 +445,7 @@ export function useWeekSchedule(startDate: string | null, days: number, corpus: 
       }
       Promise.all(
         dates.map((date) =>
-          fetch(`/api/schedule/day?date=${encodeURIComponent(date)}&corpus=${corpus}`)
+          fetch(`/api/schedule/day?date=${encodeURIComponent(date)}&dept=${dept}`)
             .then(async (r) => (r.ok ? r.json() : null))
             .then((j) => ({
               date,
@@ -442,7 +469,7 @@ export function useWeekSchedule(startDate: string | null, days: number, corpus: 
     };
     window.addEventListener("tspk:schedule-updated", handler);
     return () => window.removeEventListener("tspk:schedule-updated", handler);
-  }, [startDate, days, corpus]);
+  }, [startDate, days, dept]);
 
   return { items, loading };
 }

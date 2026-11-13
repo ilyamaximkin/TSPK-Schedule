@@ -51,6 +51,17 @@ export interface CalendarEntry {
   gid: string | null;
 }
 
+/**
+ * Отделение / kind of schedule to show:
+ *  - "1" / "2" — очные корпуса (daily spreadsheets from the calendar);
+ *  - "zaoch"  — заочное отделение (static semester spreadsheet, blocks
+ *               keyed by concrete dates, evening sessions);
+ *  - "dpo"    — дополнительное профессиональное образование (a separate
+ *               sheet inside each daily spreadsheet, ДПО programs as
+ *               columns).
+ */
+export type Dept = "1" | "2" | "zaoch" | "dpo";
+
 export interface Lesson {
   number: number;
   time: string;
@@ -63,7 +74,7 @@ export interface Lesson {
 export interface DaySchedule {
   /** ISO date YYYY-MM-DD */
   date: string;
-  /** Corpus (1 or 2) */
+  /** Corpus (1 or 2) — 1 for dept views (заочное / ДПО) */
   corpus: 1 | 2;
   /** Human-readable header from the CSV */
   header: string;
@@ -75,6 +86,8 @@ export interface DaySchedule {
   scheduleByGroup: Record<string, Lesson[]>;
   /** True when the CSV says "нет занятий" or contains no lessons */
   noLessons: boolean;
+  /** Set for заочное / ДПО views */
+  dept?: Exclude<Dept, "1" | "2">;
 }
 
 const fetchWithTimeout = async (url: string, opts: RequestInit = {}, ms = 15000) => {
@@ -621,4 +634,281 @@ export async function fetchDaySchedule(
 export function getDayOfWeekRu(isoDate: string): string {
   const d = new Date(isoDate + "T00:00:00");
   return DAY_OF_WEEK_RU[d.getDay()] || "";
+}
+
+// ---------------------------------------------------------------------------
+// ЗАОНЕЕ ОТДЕЛЕНИЕ / ДПО (dept views)
+// ---------------------------------------------------------------------------
+
+/**
+ * Заочное отделение — a static semester spreadsheet linked from the TSPK
+ * page as "РАСПИСАНИЕ ЗАОЧНОГО ОТДЕЛЕНИЯ 1,2,3,4 курс" (all four course
+ * links point to this one file). Inside, each course sheet holds day
+ * blocks keyed by concrete dates: a header row with group labels
+ * (ДО-21а, НК-25а/НК-31а, СР-35а…), then rows "DD.MM.YYYYY <weekday>",
+ * пара, время, lessons — evening sessions up to 19:50.
+ *
+ * Gotcha: the sheet title cell ("Расписание занятий заочного от…") sits
+ * ON TOP of a real group column in the first block, and "Согласовано:"
+ * spans another — so column labels are recovered from ALL header rows of
+ * the sheet (first valid group-like label per column wins).
+ *
+ * If TSPK re-links the file, update this id.
+ */
+const ZAOCH_SPREADSHEET_ID = "14CBJU3EioTaqgYkELGtSsalkGEJOqrdBIJvSy8uTfyk";
+
+/** Group labels in заочное sheets, e.g. "ДО-21а", "НК-25а/НК-31а". */
+const ZAOCH_GROUP_RE =
+  /^[А-ЯЁ][А-ЯЁ]{1,4}-\d{2,3}а?(?:\s*\/\s*[А-ЯЁ][А-ЯЁ]{1,4}-\d{2,3}а?)*$/u;
+
+const normalizeCell = (s: string | undefined): string =>
+  (s || "").replace(/\s+/g, " ").trim();
+
+const normalizeDpoName = (s: string | undefined): string => {
+  const t = normalizeCell(s).replace(/[.,;:]+$/, "");
+  return t.length > 120 ? t.slice(0, 117) + "…" : t;
+};
+
+/** Shared de-dup + sort for parsed group schedules. */
+function dedupeSortGroups(scheduleByGroup: Record<string, Lesson[]>) {
+  for (const g of Object.keys(scheduleByGroup)) {
+    const seen = new Set<string>();
+    scheduleByGroup[g] = scheduleByGroup[g].filter((l) => {
+      const key = `${l.number}|${l.time}|${l.subject}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    scheduleByGroup[g].sort((a, b) => {
+      if (a.number !== b.number) return a.number - b.number;
+      const aStart = a.time.match(/^(\d{1,2}\.\d{2})/)?.[1] ?? "";
+      const bStart = b.time.match(/^(\d{1,2}\.\d{2})/)?.[1] ?? "";
+      return aStart.localeCompare(bStart);
+    });
+  }
+}
+
+/** Fetch the CSV text of every sheet in the заочное spreadsheet. */
+export async function fetchZaochSheetCsvs(): Promise<string[]> {
+  const htmlviewUrl = `https://docs.google.com/spreadsheets/d/${ZAOCH_SPREADSHEET_ID}/htmlview`;
+  const res = await fetchWithTimeout(
+    htmlviewUrl,
+    { headers: { "User-Agent": USER_AGENT, Accept: "text/html,*/*" } },
+    20000,
+  );
+  if (!res.ok) {
+    throw new Error(`Google Sheets returned ${res.status} for заочное отделение`);
+  }
+  const html = await res.text();
+  const gids = new Set<string>(
+    Array.from(html.matchAll(/gid=(\d+)/g)).map((m) => m[1]),
+  );
+  return Promise.all(
+    Array.from(gids).map((gid) => fetchSpreadsheetCsv(ZAOCH_SPREADSHEET_ID, gid)),
+  );
+}
+
+/** Parse one заочное sheet; return null when the sheet has no block for isoDate. */
+function parseZaochSheet(csv: string, isoDate: string): DaySchedule | null {
+  const rows: string[][] = parseCsvString(csv, {
+    relax_column_count: true,
+    skip_empty_lines: false,
+    trim: false,
+  });
+
+  // Column → group label. First valid group-like label per column wins;
+  // the title / "Согласовано:" cells are skipped and later header rows
+  // supply the real group name for that column.
+  const colGroups: Record<number, string> = {};
+  for (const row of rows) {
+    for (let c = 3; c < row.length; c++) {
+      if (colGroups[c]) continue;
+      const name = normalizeCell(row[c]);
+      if (ZAOCH_GROUP_RE.test(name)) colGroups[c] = name;
+    }
+  }
+
+  // Locate the day block: a row whose col0 is "DD.MM.YYYY <weekday>".
+  const dateRe = /^(\d{1,2})\.(\d{1,2})\.(\d{4})/;
+  let blockIdx = -1;
+  for (let i = 0; i < rows.length; i++) {
+    const m = normalizeCell(rows[i]?.[0]).match(dateRe);
+    if (m) {
+      const iso = `${m[3]}-${pad(Number(m[2]))}-${pad(Number(m[1]))}`;
+      if (iso === isoDate) {
+        blockIdx = i;
+        break;
+      }
+    }
+  }
+  if (blockIdx < 0) return null;
+
+  const scheduleByGroup: Record<string, Lesson[]> = {};
+  const groupSet = new Set<string>();
+  for (let i = blockIdx; i < rows.length; i++) {
+    const row = rows[i] || [];
+    if (i > blockIdx && dateRe.test(normalizeCell(row[0]))) break; // next day
+    const num = parseInt(normalizeCell(row[1]), 10);
+    if (!Number.isFinite(num) || num < 1 || num > 12) continue;
+    const fallbackTime = normalizeCell(row[2]);
+    for (const [colStr, group] of Object.entries(colGroups)) {
+      const cell = row[Number(colStr)] || "";
+      const lessons = parseLessonCell(cell, fallbackTime);
+      if (lessons.length === 0) continue;
+      if (!scheduleByGroup[group]) scheduleByGroup[group] = [];
+      groupSet.add(group);
+      for (const lesson of lessons) {
+        lesson.number = num;
+        scheduleByGroup[group].push(lesson);
+      }
+    }
+  }
+  dedupeSortGroups(scheduleByGroup);
+
+  const total = Object.values(scheduleByGroup).reduce((a, l) => a + l.length, 0);
+  return {
+    date: isoDate,
+    corpus: 1,
+    dept: "zaoch",
+    header: "Расписание занятий заочного отделения",
+    dayOfWeek: getDayOfWeekRu(isoDate),
+    groups: Array.from(groupSet).sort((a, b) => a.localeCompare(b, "ru")),
+    scheduleByGroup,
+    noLessons: total === 0,
+  };
+}
+
+/** Parse all заочное sheets; the one holding a block for isoDate wins. */
+export function parseZaochSchedule(
+  csvs: string[],
+  isoDate: string,
+): DaySchedule | null {
+  for (const csv of csvs) {
+    const found = parseZaochSheet(csv, isoDate);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * Find the ДПО sheet inside a daily spreadsheet: its first row looks like
+ * "20.10.2026г. пара","время ","ДПО ПП …",… — a date + "пара" in the
+ * header line. Standard corpus sheets ("Расписание занятий на …") and the
+ * заочное copy ("День","Пара","Время") are skipped.
+ */
+export async function findDpoGid(spreadsheetId: string): Promise<string | null> {
+  const htmlviewUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/htmlview`;
+  const res = await fetchWithTimeout(
+    htmlviewUrl,
+    { headers: { "User-Agent": USER_AGENT, Accept: "text/html,*/*" } },
+    20000,
+  );
+  if (!res.ok) {
+    return null;
+  }
+  const html = await res.text();
+  const gids = new Set<string>(
+    Array.from(html.matchAll(/gid=(\d+)/g)).map((m) => m[1]),
+  );
+  gids.delete("0");
+
+  const probes = await Promise.all(
+    Array.from(gids).map(async (gid) => {
+      try {
+        const csv = await fetchSpreadsheetCsv(spreadsheetId, gid);
+        const firstLine = csv.split("\n")[0] || "";
+        if (/Расписание занятий на/i.test(firstLine)) return null;
+        if (/^"?День"?\s*,\s*"?Пара"?/i.test(firstLine)) return null;
+        if (/\d{2}\.\d{2}\.\d{4}/.test(firstLine) && /пара/i.test(firstLine)) {
+          return gid;
+        }
+      } catch {
+        /* ignore — try next sheet */
+      }
+      return null;
+    }),
+  );
+  return probes.find((g) => g !== null) ?? null;
+}
+
+/**
+ * Parse the ДПО sheet. It is a stack of sub-tables: a row whose col1 is
+ * "время" starts a new one, with ДПО program names (long, sometimes with
+ * "гр. ХХ-11" group lists glued on) as column labels; lesson rows carry
+ * the pair number in col0 and time in col1. Annotation rows between
+ * sub-tables ("1 курс", "гр. ФК-11, …") carry no pair number and are
+ * skipped by the numeric check.
+ */
+function parseDpoCsv(csv: string, isoDate: string): DaySchedule {
+  const rows: string[][] = parseCsvString(csv, {
+    relax_column_count: true,
+    skip_empty_lines: false,
+    trim: false,
+  });
+
+  const scheduleByGroup: Record<string, Lesson[]> = {};
+  const groupSet = new Set<string>();
+  let currentGroups: string[] = [];
+  let currentCols: number[] = [];
+  let header = "";
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i] || [];
+    const col0 = normalizeCell(row[0]);
+    const col1 = normalizeCell(row[1]);
+    if (i === 0) header = col0;
+
+    const headerCol =
+      col1.toLowerCase() === "время" ? 2 : col0.toLowerCase() === "время" ? 1 : -1;
+    if (headerCol >= 0) {
+      currentGroups = [];
+      currentCols = [];
+      for (let c = headerCol; c < row.length; c++) {
+        const name = normalizeDpoName(row[c]);
+        if (!name || /^согласовано/i.test(name)) continue;
+        currentCols.push(c);
+        currentGroups.push(name);
+        groupSet.add(name);
+        if (!scheduleByGroup[name]) scheduleByGroup[name] = [];
+      }
+      continue;
+    }
+
+    const num = parseInt(col0, 10);
+    if (!Number.isFinite(num) || num < 1 || num > 12) continue;
+    const fallbackTime = col1;
+    currentGroups.forEach((g, gi) => {
+      const cell = row[currentCols[gi]] || "";
+      const lessons = parseLessonCell(cell, fallbackTime);
+      if (lessons.length === 0) return;
+      for (const lesson of lessons) {
+        lesson.number = num;
+        scheduleByGroup[g].push(lesson);
+      }
+    });
+  }
+  dedupeSortGroups(scheduleByGroup);
+
+  const total = Object.values(scheduleByGroup).reduce((a, l) => a + l.length, 0);
+  return {
+    date: isoDate,
+    corpus: 1,
+    dept: "dpo",
+    header,
+    dayOfWeek: getDayOfWeekRu(isoDate),
+    groups: Array.from(groupSet).sort((a, b) => a.localeCompare(b, "ru")),
+    scheduleByGroup,
+    noLessons: total === 0,
+  };
+}
+
+/** Fetch + parse the ДПО sheet of a daily spreadsheet (null = no sheet). */
+export async function fetchDpoSchedule(
+  spreadsheetId: string,
+  isoDate: string,
+): Promise<DaySchedule | null> {
+  const gid = await findDpoGid(spreadsheetId);
+  if (!gid) return null;
+  const csv = await fetchSpreadsheetCsv(spreadsheetId, gid);
+  return parseDpoCsv(csv, isoDate);
 }

@@ -13,6 +13,7 @@ import {
   useLocalStorage,
   formatDateRu,
   type DaySchedule,
+  type Dept,
   type ViewMode,
 } from "./use-tspk";
 
@@ -99,11 +100,11 @@ async function showNotification(
 }
 
 export function ScheduleWatcher({
-  corpus,
+  dept,
   mode,
   value,
 }: {
-  corpus: 1 | 2;
+  dept: Dept;
   mode: ViewMode;
   value: string;
 }) {
@@ -149,7 +150,7 @@ export function ScheduleWatcher({
           let sched: DaySchedule | null = null;
           try {
             const r = await fetch(
-              `/api/schedule/day?date=${encodeURIComponent(date)}&corpus=${corpus}`,
+              `/api/schedule/day?date=${encodeURIComponent(date)}&dept=${dept}`,
               { signal: AbortSignal.timeout(30_000) },
             );
             const j = await r.json().catch(() => null);
@@ -171,7 +172,7 @@ export function ScheduleWatcher({
           const hash = lessons.length > 0 ? hashLessons(lessons) : "";
           const count = lessons.length;
 
-          const stateKey = `tspk:watch:state:${corpus}:${mode}:${value}`;
+          const stateKey = `tspk:watch:state:${dept}:${mode}:${value}`;
           let state: Record<string, WatchState> = {};
           try {
             state = JSON.parse(localStorage.getItem(stateKey) || "{}") as typeof state;
@@ -188,7 +189,7 @@ export function ScheduleWatcher({
             if (!firstEver && prev.hash === "") {
               const first = lessons[0];
               const shown = await showNotification(
-                `${corpus}:${mode}:${value}:${date}:appeared`,
+                `${dept}:${mode}:${value}:${date}:appeared`,
                 "🎓 Расписание появилось",
                 `${dayLabel} для ${value}: ${count} пар${first.time ? `, первая в ${first.time.split("-")[0]}` : ""}.`,
               );
@@ -202,7 +203,7 @@ export function ScheduleWatcher({
               window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: { date } }));
             } else if (!firstEver && prev.hash !== hash) {
               await showNotification(
-                `${corpus}:${mode}:${value}:${date}:changed`,
+                `${dept}:${mode}:${value}:${date}:changed`,
                 "🔁 Расписание изменилось",
                 `${dayLabel} для ${value}: теперь ${count} пар. Загляните, что поменялось.`,
               );
@@ -252,7 +253,7 @@ export function ScheduleWatcher({
         setChecking(false);
       }
     },
-    [value, corpus, mode, intervalMin],
+    [value, dept, mode, intervalMin],
   );
 
   // Polling loop — runs while the tab is open (any tab of this app).
@@ -273,7 +274,7 @@ export function ScheduleWatcher({
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [enabled, value, permission, intervalMin, corpus, mode, poll]);
+  }, [enabled, value, permission, intervalMin, dept, mode, poll]);
   const requestPermission = async () => {
     if (typeof Notification === "undefined") {
       toast({ title: "Браузер не поддерживает уведомления" });
@@ -327,8 +328,8 @@ export function ScheduleWatcher({
               <BellOff className="w-5 h-5 shrink-0 text-muted-foreground" />
             )}
             <div className="min-w-0">
-              <h2 className="font-semibold text-lg sm:text-base leading-tight">Уведомления о расписании</h2>
-              <p className="text-sm sm:text-xs text-muted-foreground truncate">
+              <h2 className="font-semibold text-sm sm:text-base leading-tight">Уведомления о расписании</h2>
+              <p className="text-xs text-muted-foreground truncate">
                 {watching
                   ? `Следим за ${what} «${value}» — сегодня и завтра`
                   : value
@@ -347,13 +348,13 @@ export function ScheduleWatcher({
         {permission !== "granted" ? (
           <div className="space-y-2">
             {permission === "denied" ? (
-                <p className="text-base sm:text-sm text-amber-600 dark:text-amber-400">
+                <p className="text-sm text-amber-600 dark:text-amber-400">
                   Уведомления заблокированы в браузере. Разрешите их для этого сайта (иконка замка в адресной
                   строке → «Уведомления» → «Разрешить») и перезагрузите страницу.
                 </p>
             ) : (
               <>
-                <p className="text-base sm:text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Бот сам проверит расписание (ТСПК обычно выкладывает его к 22:00 предыдущего дня) и
                   пришлёт уведомление, как только оно появится или изменится. Вкладку держать открытой не
                   нужно — достаточно, чтобы браузер был запущен.
@@ -368,14 +369,14 @@ export function ScheduleWatcher({
         ) : (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm sm:text-xs text-muted-foreground">Проверять каждые</span>
+              <span className="text-xs text-muted-foreground">Проверять каждые</span>
               {[1, 2, 5, 10].map((m) => (
                 <button
                   key={m}
                   type="button"
                   onClick={() => setIntervalMin(m)}
                   className={
-                    "min-h-[44px] px-3 py-2 rounded-md text-sm sm:text-xs font-medium border transition-colors " +
+                    "min-h-[44px] px-3 py-2 rounded-md text-xs font-medium border transition-colors " +
                     (intervalMin === m
                       ? "bg-primary text-primary-foreground border-primary"
                       : "border-border text-muted-foreground hover:text-foreground")
@@ -385,7 +386,7 @@ export function ScheduleWatcher({
                 </button>
               ))}
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-sm sm:text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
               {status.tone === "warn" ? (
                 <span className="text-amber-600 dark:text-amber-400">{status.message}</span>
               ) : (
