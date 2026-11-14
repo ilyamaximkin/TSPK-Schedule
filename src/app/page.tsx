@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemePicker } from "@/components/theme-picker";
 import { LiveClock } from "@/components/live-clock";
 import { AccessibilityZoom } from "@/components/accessibility-zoom";
 import { EntrySelector } from "@/components/schedule/EntrySelector";
@@ -89,8 +90,8 @@ export default function Home() {
   const customSched = useDaySchedule(customIso, dept);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-50/60 via-background to-background dark:from-sky-950/20 dark:via-background dark:to-background">
-      <header className="border-b border-sky-200/60 dark:border-sky-900/40 bg-gradient-to-r from-[#2e8db2] to-[#83bed4] dark:from-[#1d5a78] dark:to-[#2e6080] text-white backdrop-blur sticky top-0 z-10">
+    <div className="min-h-screen bg-gradient-to-b from-(--app-bg-from) via-background to-background">
+      <header className="border-b border-sky-200/60 dark:border-sky-900/40 bg-gradient-to-r from-(--header-from) to-(--header-to) text-white backdrop-blur sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-2 sm:gap-3">
           <div className="flex items-center gap-2 sm:gap-2.5 flex-1 min-w-0">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-white/15 ring-1 ring-white/30 flex items-center justify-center shrink-0">
@@ -320,6 +321,9 @@ export default function Home() {
             <WeekView startDate={backWeekStart} mode={mode} value={value} dept={dept} />
           </TabsContent>
         </Tabs>
+
+        {/* Design theme picker — at the bottom, like in many apps */}
+        <ThemePicker />
       </main>
 
       <footer className="mt-auto border-t bg-background/60">
