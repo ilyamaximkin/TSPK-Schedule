@@ -22,6 +22,8 @@ const THEMES: { id: string; label: string; dot: string }[] = [
   { id: "rose", label: "Роза", dot: "#e11d48" },
   { id: "lavender", label: "Лаванда", dot: "#7c3aed" },
   { id: "graphite", label: "Графит", dot: "#475569" },
+  { id: "anime", label: "Аниме", dot: "#ec4899" },
+  { id: "mlp", label: "MLP", dot: "#a855f7" },
 ];
 
 const KNOWN = new Set(THEMES.map((t) => t.id));

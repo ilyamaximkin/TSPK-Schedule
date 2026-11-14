@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
 export const metadata: Metadata = {
   title: "Расписание ТСПК — бот для Макса",
   description: "Веб-бот для расписания Тольяттинского социально-педагогического колледжа. Сегодня, завтра, неделя, по дате — для вашей группы.",
