@@ -405,3 +405,29 @@
     font-size: calc(16px * var(--ui-zoom, 1));
   }
 }
+
+/* Extreme accessibility zoom (×3 and up, class set by
+   accessibility-zoom.tsx / the layout pre-paint script):
+   - grids that hold short labels collapse to one column, otherwise long
+     words overflow their cell and visually overlap the neighbours;
+   - rem-based paddings and gaps (py-3 = 960px at ×20) are replaced with
+     compact fixed-px ones so content stays usable. */
+html.zoom-xl [data-zoom-stack] {
+  grid-template-columns: 1fr !important;
+}
+html.zoom-xl main {
+  padding: 12px 16px 48px !important;
+}
+html.zoom-xl main > * + * {
+  margin-top: 16px !important;
+}
+html.zoom-xl header > div {
+  padding: 8px 16px !important;
+  gap: 8px !important;
+}
+html.zoom-xl footer > div {
+  padding: 8px 16px !important;
+}
+html.zoom-xl [data-slot="card-content"] {
+  padding: 12px !important;
+}

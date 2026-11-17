@@ -376,7 +376,7 @@ export function ScheduleWatcher({
                   type="button"
                   onClick={() => setIntervalMin(m)}
                   className={
-                    "min-h-[44px] px-3 py-2 rounded-md text-xs font-medium border transition-colors " +
+                    "min-h-11 px-3 py-2 rounded-md text-xs font-medium border transition-colors " +
                     (intervalMin === m
                       ? "bg-primary text-primary-foreground border-primary"
                       : "border-border text-muted-foreground hover:text-foreground")

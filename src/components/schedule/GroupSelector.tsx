@@ -93,7 +93,7 @@ export function GroupSelector({ schedule, date, dept = "1", value, onChange }: P
               {showFreeText && (
                 <CommandGroup heading="Добавить свою">
                   <CommandItem
-                    className="min-h-[44px]"
+                    className="min-h-11"
                     onSelect={() => {
                       onChange(query.trim());
                       setOpen(false);
@@ -110,7 +110,7 @@ export function GroupSelector({ schedule, date, dept = "1", value, onChange }: P
                   <CommandItem
                     key={g}
                     value={g}
-                    className="min-h-[44px]"
+                    className="min-h-11"
                     onSelect={() => {
                       onChange(g);
                       setOpen(false);

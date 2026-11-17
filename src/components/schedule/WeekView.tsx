@@ -45,7 +45,7 @@ export function WeekView({ startDate, mode, value, dept = "1" }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 data-zoom-stack">
       {items.map((it) => (
         <DayCard key={it.date} date={it.date} schedule={it.schedule} loading={it.loading} error={it.error} mode={mode} value={value} />
       ))}
@@ -53,7 +53,8 @@ export function WeekView({ startDate, mode, value, dept = "1" }: Props) {
   );
 }
 
-function DayCard({
+/** One day card — also reused by the MonthView tabs. */
+export function DayCard({
   date,
   schedule,
   loading,

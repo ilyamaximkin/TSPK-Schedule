@@ -60,7 +60,7 @@ export function ThemePicker() {
               type="button"
               onClick={() => setTheme(t.id)}
               className={
-                "min-h-[44px] px-3 py-2 rounded-md text-xs font-medium border transition-colors inline-flex items-center gap-2 " +
+                "min-h-11 px-3 py-2 rounded-md text-xs font-medium border transition-colors inline-flex items-center gap-2 " +
                 (theme === t.id
                   ? "bg-primary text-primary-foreground border-primary"
                   : "border-border text-muted-foreground hover:text-foreground")

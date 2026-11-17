@@ -36,6 +36,10 @@ export function AccessibilityZoom() {
   useEffect(() => {
     const v = isKnownMode(zoom) ? zoom : 1;
     document.documentElement.style.setProperty("--ui-zoom", String(v));
+    // From ×3 up, also compact the layout: multi-column label grids
+    // collapse and rem paddings shrink (globals.css .zoom-xl rules) —
+    // otherwise long words overflow their cells and overlap.
+    document.documentElement.classList.toggle("zoom-xl", v >= 3);
   }, [zoom]);
 
   return (
@@ -57,7 +61,7 @@ export function AccessibilityZoom() {
               type="button"
               onClick={() => setZoom(m.value)}
               className={
-                "min-h-[44px] px-3 py-2 rounded-md text-xs font-medium border transition-colors " +
+                "min-h-11 px-3 py-2 rounded-md text-xs font-medium border transition-colors " +
                 (zoom === m.value
                   ? "bg-primary text-primary-foreground border-primary"
                   : "border-border text-muted-foreground hover:text-foreground")

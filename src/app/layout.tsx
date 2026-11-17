@@ -53,7 +53,7 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var z=parseFloat(localStorage.getItem('tspk:uiZoom'));if(z&&z>1&&z<=20){document.documentElement.style.setProperty('--ui-zoom',String(z));}}catch(e){}" +
+              "try{var z=parseFloat(localStorage.getItem('tspk:uiZoom'));if(z&&z>1&&z<=20){document.documentElement.style.setProperty('--ui-zoom',String(z));if(z>=3)document.documentElement.classList.add('zoom-xl');}}catch(e){}" +
               "try{var t=localStorage.getItem('tspk:theme');if(t&&t!=='classic'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}",
           }}
         />

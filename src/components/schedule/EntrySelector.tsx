@@ -117,7 +117,7 @@ export function EntrySelector({ mode, schedule, date, dept = "1", value, onChang
               {showFreeText && (
                 <CommandGroup heading="Добавить свой">
                   <CommandItem
-                    className="min-h-[44px]"
+                    className="min-h-11"
                     onSelect={() => {
                       onChange(query.trim());
                       setOpen(false);
@@ -134,7 +134,7 @@ export function EntrySelector({ mode, schedule, date, dept = "1", value, onChang
                   <CommandItem
                     key={g}
                     value={g}
-                    className="min-h-[44px]"
+                    className="min-h-11"
                     onSelect={() => {
                       onChange(g);
                       setOpen(false);

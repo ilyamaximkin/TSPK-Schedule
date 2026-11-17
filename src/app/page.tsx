@@ -15,6 +15,7 @@ import { AccessibilityZoom } from "@/components/accessibility-zoom";
 import { EntrySelector } from "@/components/schedule/EntrySelector";
 import { ScheduleForGroup } from "@/components/schedule/ScheduleForGroup";
 import { WeekView } from "@/components/schedule/WeekView";
+import { MonthView } from "@/components/schedule/MonthView";
 import { ScheduleWatcher } from "@/components/schedule/schedule-watcher";
 import {
   useDaySchedule,
@@ -81,10 +82,13 @@ export default function Home() {
   // Monday of the relevant week — independent of today's weekday.
   const weekStart = weekStartIso(0);
   const backWeekStart = weekStartIso(-1);
+  // "Понедельник" tab — this week's Monday as a single day.
+  const monday = weekStart;
 
   const yesterdaySched = useDaySchedule(yesterday, dept);
   const todaySched = useDaySchedule(today, dept);
   const tomorrowSched = useDaySchedule(tomorrow, dept);
+  const mondaySched = useDaySchedule(monday, dept);
   // For the "by date" tab we use the selected Date object → ISO.
   const customIso = customDate ? isoFromJsDate(customDate) : today;
   const customSched = useDaySchedule(customIso, dept);
@@ -113,7 +117,7 @@ export default function Home() {
             href={TSPK_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-white/80 hover:text-white hidden sm:inline-flex items-center justify-center gap-1 shrink-0 sm:min-h-[44px] sm:min-w-[44px] px-1"
+            className="text-xs text-white/80 hover:text-white hidden sm:inline-flex items-center justify-center gap-1 shrink-0 sm:min-h-11 sm:min-w-11 px-1"
           >
             <span className="hidden sm:inline">Источник</span>
             <ExternalLink className="w-4 h-4" />
@@ -133,7 +137,7 @@ export default function Home() {
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide pl-1 mb-2 block">
               Отделение
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 data-zoom-stack">
               <DeptButton
                 active={dept === "1"}
                 onClick={() => setDept("1")}
@@ -170,7 +174,7 @@ export default function Home() {
         <Card>
           <CardContent className="p-4 sm:p-5">
             {/* Mode toggle */}
-            <div className="grid grid-cols-3 gap-1 p-1 bg-muted/40 rounded-lg mb-3">
+            <div className="grid grid-cols-3 gap-1 p-1 bg-muted/40 rounded-lg mb-3 data-zoom-stack">
               <ModeButton
                 active={mode === "group"}
                 onClick={() => setMode("group")}
@@ -201,7 +205,7 @@ export default function Home() {
                 {" "}
                 <button
                   onClick={() => setValue("")}
-                  className="underline hover:text-foreground p-2 -m-2"
+                  className="underline hover:text-foreground"
                 >
                   Сменить
                 </button>
@@ -214,33 +218,56 @@ export default function Home() {
         <ScheduleWatcher dept={dept} mode={mode} value={value} />
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="grid grid-cols-3 sm:grid-cols-6 w-full h-auto">
-            <TabsTrigger value="yesterday" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+          <TabsList className="grid grid-cols-3 w-full h-auto data-zoom-stack">
+            <TabsTrigger value="monday" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-11">
+              <CalendarClock className="w-4 h-4 shrink-0" />
+              <span>Понедельник</span>
+            </TabsTrigger>
+            <TabsTrigger value="yesterday" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-11">
               <History className="w-4 h-4 shrink-0" />
               <span>Вчера</span>
             </TabsTrigger>
-            <TabsTrigger value="today" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="today" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-11">
               <CalendarClock className="w-4 h-4 shrink-0" />
               <span>Сегодня</span>
             </TabsTrigger>
-            <TabsTrigger value="tomorrow" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="tomorrow" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-11">
               <CalendarDays className="w-4 h-4 shrink-0" />
               <span>Завтра</span>
             </TabsTrigger>
-            <TabsTrigger value="date" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="date" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-11">
               <CalendarRange className="w-4 h-4 shrink-0" />
               <span>Дата</span>
             </TabsTrigger>
-            <TabsTrigger value="week" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="week" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-11">
               <CalendarRange className="w-4 h-4 shrink-0" />
               <span>Неделя</span>
             </TabsTrigger>
-            <TabsTrigger value="back-week" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-[44px]">
+            <TabsTrigger value="back-week" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-11">
               <CalendarMinus className="w-4 h-4 shrink-0" />
               <span className="hidden sm:inline">Назад Неделя</span>
               <span className="sm:hidden">Назад</span>
             </TabsTrigger>
+            <TabsTrigger value="month" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-11">
+              <CalendarRange className="w-4 h-4 shrink-0" />
+              <span>Месяц</span>
+            </TabsTrigger>
+            <TabsTrigger value="back-month" className="flex-row gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2.5 min-h-11">
+              <CalendarMinus className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline">Месяц назад</span>
+              <span className="sm:hidden">М-назад</span>
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="monday" className="mt-4 sm:mt-5">
+            <ScheduleForGroup
+              schedule={mondaySched.data}
+              loading={mondaySched.loading}
+              error={mondaySched.error}
+              mode={mode}
+              value={value}
+            />
+          </TabsContent>
 
           <TabsContent value="yesterday" className="mt-4 sm:mt-5">
             <ScheduleForGroup
@@ -274,7 +301,7 @@ export default function Home() {
 
           <TabsContent value="date" className="mt-4 sm:mt-5 space-y-4">
             <div className="flex flex-col sm:flex-row gap-4 items-start">
-              <div className="rounded-lg border bg-card p-2">
+              <div className="rounded-lg border bg-card p-2 overflow-x-auto">
                 <Calendar
                   mode="single"
                   selected={customDate}
@@ -319,6 +346,14 @@ export default function Home() {
               Прошлая неделя (как «Назад Коток» в ShellShock Live — с прошлого понедельника по прошлое воскресенье).
             </p>
             <WeekView startDate={backWeekStart} mode={mode} value={value} dept={dept} />
+          </TabsContent>
+
+          <TabsContent value="month" className="mt-4 sm:mt-5">
+            <MonthView monthOffset={0} mode={mode} value={value} dept={dept} />
+          </TabsContent>
+
+          <TabsContent value="back-month" className="mt-4 sm:mt-5">
+            <MonthView monthOffset={-1} mode={mode} value={value} dept={dept} />
           </TabsContent>
         </Tabs>
 
@@ -367,7 +402,7 @@ function ModeButton({
       type="button"
       onClick={onClick}
       className={
-        "flex items-center justify-center min-h-[44px] px-2 rounded-md text-xs sm:text-sm font-medium transition-colors " +
+        "flex items-center justify-center min-h-11 px-2 rounded-md text-xs sm:text-sm font-medium transition-colors " +
         (active
           ? "bg-background text-foreground shadow-sm"
           : "text-muted-foreground hover:text-foreground")
